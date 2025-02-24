@@ -13,7 +13,7 @@ import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
 
 /**
  * An example illustrating how to implement a GamePlayer
- * Author: Modified by Assistant
+ * @author Yong Gao (yong.gao@ubc.ca)
  */
 public class COSC322Test extends GamePlayer {
 
