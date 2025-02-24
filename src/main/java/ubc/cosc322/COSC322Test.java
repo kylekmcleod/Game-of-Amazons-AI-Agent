@@ -46,16 +46,16 @@ public class COSC322Test extends GamePlayer {
     public COSC322Test(String userName, String passwd) {
         this.userName = userName;
         this.passwd = passwd;
-        this.gamegui = new BaseGameGUI(this); // Initialize GUI instance
+        this.gamegui = new BaseGameGUI(this);
     }
 
     @Override
     public void onLogin() {
         System.out.println("Login successful! Finding a room to join...");
 
-        userName = gameClient.getUserName(); // Set the user name
+        userName = gameClient.getUserName();
         if (gamegui != null) {
-            gamegui.setRoomInformation(gameClient.getRoomList()); // Update room list in GUI
+            gamegui.setRoomInformation(gameClient.getRoomList());
         }
 
         List<Room> rooms = gameClient.getRoomList();
@@ -85,7 +85,7 @@ public class COSC322Test extends GamePlayer {
 
             case GameMessage.GAME_ACTION_MOVE:
                 if (gamegui != null) {
-                    gamegui.updateGameState(msgDetails); // Update the game board in the GUI
+                    gamegui.updateGameState(msgDetails);
                 }
 
                 // Here you can calculate your move based on the game state and send it to the server
