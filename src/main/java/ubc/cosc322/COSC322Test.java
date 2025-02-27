@@ -10,6 +10,7 @@ import ygraph.ai.smartfox.games.GameClient;
 import ygraph.ai.smartfox.games.GameMessage;
 import ygraph.ai.smartfox.games.GamePlayer;
 import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
+import ygraph.ai.smartfox.games.amazons.HumanPlayer;
 
 /**
  * An example illustrating how to implement a GamePlayer
@@ -28,7 +29,11 @@ public class COSC322Test extends GamePlayer {
      * @param args for name and passwd (current, any string would work)
      */
     public static void main(String[] args) {
+
+        // To use a human player, uncomment it out and comment out the COSC322Test player.
+
         COSC322Test player = new COSC322Test("Player" + (int) (Math.random() * 10000), "2");
+        //HumanPlayer player = new HumanPlayer();
 
         if (player.getGameGUI() == null) {
             player.Go();
