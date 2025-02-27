@@ -28,7 +28,7 @@ public class COSC322Test extends GamePlayer {
      * @param args for name and passwd (current, any string would work)
      */
     public static void main(String[] args) {
-        COSC322Test player = new COSC322Test("cosc322", "cosc322");
+        COSC322Test player = new COSC322Test("Player" + Math.random() * 10000, "1");
 
         if (player.getGameGUI() == null) {
             player.Go();
@@ -79,7 +79,7 @@ public class COSC322Test extends GamePlayer {
         switch (messageType) {
             case GameMessage.GAME_STATE_BOARD:
                 if (gamegui != null) {
-                    gamegui.setGameState((ArrayList<Integer>) msgDetails.get(AmazonsGameMessage.GAME_STATE)); // Set the game board state in the GUIgame_S
+                    gamegui.setGameState((ArrayList<Integer>) msgDetails.get(AmazonsGameMessage.GAME_STATE));
                 }
                 break;
 
