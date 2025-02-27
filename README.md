@@ -6,8 +6,8 @@ This project is part of the COSC 322 course at UBC Okanagan, where we are develo
 ```
 ├── src/                                   # Source code directory
 │   ├── docs/                              # Documentation
-│   │   ├── progress_report.md             # Progress report notes.
-│   │   └── user_guide.md                  # User guide for the game.
+│   │   ├── COSC 322 Progress Report.md    # Progress report notes
+│   │   └── COSC 322 Progress Report.pdf   # Progress report PDF
 │   │   
 │   ├── main/                              # Main source code
 │   │   ├── java/                          # Java source files
