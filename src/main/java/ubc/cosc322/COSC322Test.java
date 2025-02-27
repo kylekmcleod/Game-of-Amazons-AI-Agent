@@ -28,7 +28,7 @@ public class COSC322Test extends GamePlayer {
      * @param args for name and passwd (current, any string would work)
      */
     public static void main(String[] args) {
-        COSC322Test player = new COSC322Test("Player" + (int)Math.random() * 10000, "1");
+        COSC322Test player = new COSC322Test("Player" + (int) (Math.random() * 10000), "2");
 
         if (player.getGameGUI() == null) {
             player.Go();
@@ -51,8 +51,7 @@ public class COSC322Test extends GamePlayer {
 
     @Override
     public void onLogin() {
-        System.out.println("Login successful! Finding a room to join...");
-
+        System.out.println("Login successful! Logged in as: " + userName);
         userName = gameClient.getUserName();
         if (gamegui != null) {
             gamegui.setRoomInformation(gameClient.getRoomList());
@@ -94,8 +93,16 @@ public class COSC322Test extends GamePlayer {
                 // gameClient.sendMoveMessage(myMove);
                 break;
 
+            case GameMessage.GAME_ACTION_START:
+                System.out.println("Game started! Players: " 
+                    + msgDetails.get(AmazonsGameMessage.PLAYER_BLACK) 
+                    + " vs " 
+                    + msgDetails.get(AmazonsGameMessage.PLAYER_WHITE));
+                
+                break;
+
             default:
-                System.out.println("Unhandled game message type: " + messageType);
+            System.out.println("Unhandled game message type: " + messageType);
         }
 
         return true;
