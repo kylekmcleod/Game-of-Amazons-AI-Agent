@@ -1,6 +1,7 @@
 package ubc.cosc322;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -79,7 +80,7 @@ public class COSC322Test extends GamePlayer {
     public boolean handleGameMessage(String messageType, Map<String, Object> msgDetails) {
         System.out.println("Received game message: " + messageType);
         System.out.println("Details: " + msgDetails);
-
+        System.err.println("===========================================================");
         switch (messageType) {
             case GameMessage.GAME_STATE_BOARD:
                 if (gamegui != null) {
@@ -92,18 +93,27 @@ public class COSC322Test extends GamePlayer {
                     gamegui.updateGameState(msgDetails);
                 }
 
-                // Here you can calculate your move based on the game state and send it to the server
-                // Example:
                 // Map<String, Object> myMove = calculateMyMove(msgDetails);
                 // gameClient.sendMoveMessage(myMove);
                 break;
 
             case GameMessage.GAME_ACTION_START:
-                System.out.println("Game started! Players: " 
-                    + msgDetails.get(AmazonsGameMessage.PLAYER_BLACK) 
-                    + " vs " 
-                    + msgDetails.get(AmazonsGameMessage.PLAYER_WHITE));
-                
+                String whitePlayer = (String) msgDetails.get(AmazonsGameMessage.PLAYER_WHITE);
+                String currentPlayer = userName;
+                int localPlayer = whitePlayer.equals(currentPlayer) ? 2 : 1; // 1 for white, 2 for black
+
+                System.out.println("***** PLAYER INFO: " + currentPlayer + " " + localPlayer + " *****");
+
+                if (localPlayer == 2) {
+                    System.out.println("It's your turn to move, " + currentPlayer + "!");
+                    Map<String, Object> myMove = new HashMap<>();
+                    myMove.put("queen-position-current", new ArrayList<>(List.of(10, 4))); // Current position of the queen
+                    myMove.put("queen-position-next", new ArrayList<>(List.of(9, 4))); // New position of the queen
+                    myMove.put("arrow-position", new ArrayList<>(List.of(9, 5))); // Position of the arrow
+                    gameClient.sendMoveMessage(myMove);
+                } else {
+                    System.out.println("Waiting for the black player to make a move...");
+                }
                 break;
 
             default:
@@ -139,7 +149,24 @@ public class COSC322Test extends GamePlayer {
      * @return A map representing your move
      */
     private Map<String, Object> calculateMyMove(Map<String, Object> msgDetails) {
-        // Implement your move calculation logic here
-        return null;
+        ArrayList<Integer> currentPositions = (ArrayList<Integer>) msgDetails.get("queen-position-current");
+        System.out.println(currentPositions);
+        ArrayList<Integer> newPositions = new ArrayList<>(currentPositions);
+        ArrayList<Integer> arrowPosition = new ArrayList<>();
+
+
+        for (int i = 0; i < currentPositions.size(); i++) {
+            if (currentPositions.get(i) != null) {
+                newPositions.set(i, currentPositions.get(i) + 1);
+                break;
+            }
+        }
+
+        Map<String, Object> moveDetails = new HashMap<>();
+        moveDetails.put("queen-position-current", currentPositions);
+        moveDetails.put("queen-position-next", newPositions);
+        moveDetails.put("arrow-position", arrowPosition);
+
+        return moveDetails;
     }
 }
