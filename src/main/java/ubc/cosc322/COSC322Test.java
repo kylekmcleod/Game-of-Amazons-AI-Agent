@@ -88,21 +88,24 @@ public class COSC322Test extends GamePlayer {
         }
         System.out.println("========= YOUR TURN TO MOVE =========");
         Map<String, Object> myMove = calculateMove();
+        if(gamegui != null){
+            gamegui.updateGameState(myMove);
+        }
         gameClient.sendMoveMessage(myMove);
         System.out.println("========= TURN DONE, PLEASE WAIT FOR YOUR TURN =========");
     }
 
     private void handleGameStart(Map<String, Object> msgDetails) {
+        if (gamegui != null) {
+            gamegui.updateGameState(msgDetails);
+        }
         String whitePlayer = (String) msgDetails.get(AmazonsGameMessage.PLAYER_WHITE);
         int localPlayer = whitePlayer.equals(userName) ? 1 : 2;
 
         System.out.println("***** PLAYER INFO: " + userName + " (Player " + localPlayer + ") *****");
 
         if (localPlayer == 2) {
-            System.out.println("It's your turn to move!");
-            Map<String, Object> myMove = calculateMove();
-            gameClient.sendMoveMessage(myMove);
-            System.out.println("========= TURN DONE, PLEASE WAIT FOR YOUR TURN =========");
+            processMove(msgDetails);
         } else {
             System.out.println("Waiting for the other player to make a move...");
         }
