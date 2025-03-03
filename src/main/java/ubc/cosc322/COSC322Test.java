@@ -1,7 +1,6 @@
 package ubc.cosc322;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -19,12 +18,11 @@ public class COSC322Test extends GamePlayer {
     private BaseGameGUI gamegui = null;
     private String userName;
     private String passwd;
+    private MoveCalculator moveCalculator;
 
     public static void main(String[] args) {
-        // Uncomment to play as an AI bot
-        COSC322Test player = new COSC322Test("Player" + (int) (Math.random() * 10000), "2");
-        
-        //HumanPlayer player = new HumanPlayer();
+        //COSC322Test player = new COSC322Test("Player" + (int) (Math.random() * 10000), "2");
+        HumanPlayer player = new HumanPlayer();  // UNCOMMMENT TO PLAY AS A HUMAN
         
         if (player.getGameGUI() == null) {
             player.Go();
@@ -38,6 +36,7 @@ public class COSC322Test extends GamePlayer {
         this.userName = userName;
         this.passwd = passwd;
         this.gamegui = new BaseGameGUI(this);
+        this.moveCalculator = new MoveCalculator();
     }
 
     @Override
@@ -53,7 +52,7 @@ public class COSC322Test extends GamePlayer {
     private void joinFirstAvailableRoom() {
         List<Room> rooms = gameClient.getRoomList();
         if (!rooms.isEmpty()) {
-            Room roomToJoin = rooms.get(0);
+            Room roomToJoin = rooms.get(9);
             System.out.println("Joining room: " + roomToJoin.getName());
             gameClient.joinRoom(roomToJoin.getName());
         }
@@ -66,9 +65,7 @@ public class COSC322Test extends GamePlayer {
 
         switch (messageType) {
             case GameMessage.GAME_STATE_BOARD:
-                if (gamegui != null) {
-                    gamegui.setGameState((ArrayList<Integer>) msgDetails.get(AmazonsGameMessage.GAME_STATE));
-                }
+                gamegui.setGameState((ArrayList<Integer>) msgDetails.get(AmazonsGameMessage.GAME_STATE));
                 break;
             case GameMessage.GAME_ACTION_MOVE:
                 processMove(msgDetails);
@@ -83,20 +80,14 @@ public class COSC322Test extends GamePlayer {
     }
 
     private void processMove(Map<String, Object> msgDetails) {
-        if (gamegui != null) {
-            gamegui.updateGameState(msgDetails);
-        }
-        System.out.println("========= YOUR TURN TO MOVE =========");
-        Map<String, Object> myMove = calculateMove();
-        if(gamegui != null){
-            gamegui.updateGameState(myMove);
-        }
+        Map<String, Object> myMove = moveCalculator.calculateMove();
+        
+        gamegui.updateGameState(myMove);
         gameClient.sendMoveMessage(myMove);
-        System.out.println("========= TURN DONE, PLEASE WAIT FOR YOUR TURN =========");
     }
 
     private void handleGameStart(Map<String, Object> msgDetails) {
-        if (gamegui != null) {
+        if (gamegui == null) {
             gamegui.updateGameState(msgDetails);
         }
         String whitePlayer = (String) msgDetails.get(AmazonsGameMessage.PLAYER_WHITE);
@@ -109,14 +100,6 @@ public class COSC322Test extends GamePlayer {
         } else {
             System.out.println("Waiting for the other player to make a move...");
         }
-    }
-
-    private Map<String, Object> calculateMove() {
-        Map<String, Object> move = new HashMap<>();
-        move.put("queen-position-current", new ArrayList<>(List.of(10, 4)));
-        move.put("queen-position-next", new ArrayList<>(List.of(9, 4)));
-        move.put("arrow-position", new ArrayList<>(List.of(9, 5)));
-        return move;
     }
 
     @Override
