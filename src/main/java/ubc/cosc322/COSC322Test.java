@@ -21,8 +21,8 @@ public class COSC322Test extends GamePlayer {
     private MoveCalculator moveCalculator;
 
     public static void main(String[] args) {
-        //COSC322Test player = new COSC322Test("Player" + (int) (Math.random() * 10000), "2");
-        HumanPlayer player = new HumanPlayer();  // UNCOMMMENT TO PLAY AS A HUMAN
+        COSC322Test player = new COSC322Test("Player" + (int) (Math.random() * 10000), "2");
+        //HumanPlayer player = new HumanPlayer();  // UNCOMMMENT TO PLAY AS A HUMAN
         
         if (player.getGameGUI() == null) {
             player.Go();
@@ -45,16 +45,6 @@ public class COSC322Test extends GamePlayer {
         userName = gameClient.getUserName();
         if (gamegui != null) {
             gamegui.setRoomInformation(gameClient.getRoomList());
-        }
-        joinFirstAvailableRoom();
-    }
-
-    private void joinFirstAvailableRoom() {
-        List<Room> rooms = gameClient.getRoomList();
-        if (!rooms.isEmpty()) {
-            Room roomToJoin = rooms.get(9);
-            System.out.println("Joining room: " + roomToJoin.getName());
-            gameClient.joinRoom(roomToJoin.getName());
         }
     }
 
