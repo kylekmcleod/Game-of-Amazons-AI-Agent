@@ -7,7 +7,8 @@ import java.util.List;
 import java.util.Random;
 import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
 
-/*
+/* RandomPlayer.java
+ *
  * A random player that makes random moves in the game. It extends the BasePlayer class.
  * The processMove method is overridden to make random moves.
  * 
