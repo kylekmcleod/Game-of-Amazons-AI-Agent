@@ -2,6 +2,10 @@ package ubc.cosc322;
 
 import java.util.List;
 
+/* MoveAction.java
+ *
+ * This class stores the current position of the queen, the target position of the queen and the target position of the arrow.
+ */
 public class MoveAction {
 	public List<Integer> queenCurrent;
 	public List<Integer> queenTarget;

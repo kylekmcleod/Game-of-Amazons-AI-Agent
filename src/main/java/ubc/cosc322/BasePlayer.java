@@ -9,7 +9,8 @@ import ygraph.ai.smartfox.games.GameMessage;
 import ygraph.ai.smartfox.games.GamePlayer;
 import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
 
-/*
+/* BasePlayer.java
+ *
  * This is the BasePlayer class which extends the GamePlayer class. It is an abstract class that provides the basic 
  * functionality for a player in the game. With this class, we can create a random player & a monte carlo player.
  * 
@@ -22,13 +23,11 @@ public abstract class BasePlayer extends GamePlayer {
     protected BaseGameGUI gamegui = null;
     protected String userName;
     protected String passwd;
-    protected MoveCalculator moveCalculator;
 
     public BasePlayer(String userName, String passwd) {
         this.userName = userName;
         this.passwd = passwd;
         this.gamegui = new BaseGameGUI(this);
-        this.moveCalculator = new MoveCalculator();
     }
 
     protected abstract void processMove(Map<String, Object> msgDetails);
