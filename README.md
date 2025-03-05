@@ -12,10 +12,12 @@ This project is part of the COSC 322 course at UBC Okanagan, where we are develo
 │   ├── main/                              # Main source code
 │   │   ├── java/                          # Java source files
 │   │   │   └── ubc/cosc322/               # Main package
-│   │   │       ├── COSC322Test.java       # Main game player class
-│   │   │       ├── MCTSNode.java          # Class representing a node in the tree
-│   │   │       ├── MCTS.java              # Class implementing the MCTS algorithm
-│   │   │       └── LocalTest.java         # Class to test locally
+│   │   │       ├── BasePlayer.java        # Player abstract class
+│   │   │       ├── Main.java              # Main entry point
+│   │   │       ├── MonteCarloPlayer.java  # Monte carlo player
+│   │   │       ├── MoveActionFactory.java # Generates all possible moves
+│   │   │       ├── MoveAction.java        # Store queen & arrow
+│   │   │       └── RandomPlayer.java      # Random moving player
 │   │   │
 │   │   └── resources/                     # Resource files (configs, properties)
 │   │       ├── config.properties          # Configuration file for game settings
@@ -24,8 +26,6 @@ This project is part of the COSC 322 course at UBC Okanagan, where we are develo
 │   └── test/                              # Test source code
 │       └── java/                          # Test Java files
 │           └── ubc/cosc322/               # Test package
-│               ├── MCTSNodeTest.java      # Unit tests for MCTSNode
-│               └── MCTest.java            # Unit tests for MCTS algorithm
 │
 ├── target/                                # Compiled output (GITIGNORED)
 │
