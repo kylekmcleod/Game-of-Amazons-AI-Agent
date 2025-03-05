@@ -4,14 +4,20 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
 
 /* MoveActionFactory.java
  * 
  * This class generates all possible moves for the current player. It takes the current board state as a 2D array and the current player as input.
- * We must find a way to get the current board state and the current player from the game client. Right now, it doesn't seem like the server
- * sends an updated board after each move, so we may have to keep track of the board state ourselves.
+ * 
+ * WARNING:
+ * This class creates an 11x11 array so we can use 1-based indexing. This means we MUST ignore the 0th row and 0th column.
+ * 
+ * EXAMPLES:
+ * board[1][1] is the bottom-left corner of the board.
+ * board[10][10] is the top-right corner of the board.
+ * board[0][0] is still in bounds, but we don't use it.
+ * board[0][1] is still in bounds, but we don't use it.
  */
 public class MoveActionFactory {
 
@@ -47,53 +53,70 @@ public class MoveActionFactory {
         return actions;
     }
 
+    // Get all queen positions for the current player
     private List<List<Integer>> getAllQueenCurrents() {
         List<List<Integer>> queenPositions = new ArrayList<>();
-        for (int i = 0; i < 10; i++) {
-            for (int j = 0; j < 10; j++) {
-                if (board[9 - i][j] == currentPlayer) {
-                    queenPositions.add(List.of(i + 1, j + 1));
+        for (int row = 1; row <= 10; row++) {
+            for (int col = 1; col <= 10; col++) {
+                if (board[row][col] == currentPlayer) { 
+                    queenPositions.add(List.of(row, col));
                 }
             }
         }
         return queenPositions;
     }
-
-    private List<List<Integer>> getValidMoves(int x, int y) {
+    
+    // Get all valid moves for a queen at a given position
+    private List<List<Integer>> getValidMoves(int row, int col) {
         List<List<Integer>> moves = new ArrayList<>();
-        int[][] directions = {{0, 1}, {0, -1}, {1, 0}, {-1, 0}, {1, 1}, {1, -1}, {-1, 1}, {-1, -1}};
+        int[][] directions = {
+            {0, 1}, {0, -1}, {1, 0}, {-1, 0}, 
+            {1, 1}, {1, -1}, {-1, 1}, {-1, -1}
+        };
 
         for (int[] dir : directions) {
-            int newX = x, newY = y;
-            while (isValidMove(newX + dir[0], newY + dir[1])) {
-                newX += dir[0];
-                newY += dir[1];
-                moves.add(List.of(newX, newY));
+            int newRow = row, newCol = col;
+            while (isValidMove(newRow + dir[0], newCol + dir[1])) {
+                newRow += dir[0];
+                newCol += dir[1];
+                moves.add(List.of(newRow, newCol));
             }
         }
         return moves;
     }
-
-    private boolean isValidMove(int x, int y) {
-        return x >= 1 && x <= 10 && y >= 1 && y <= 10 && board[9 - (x - 1)][y - 1] == 0;
+    
+    // Checks if the move is on the board and the position is empty
+    private boolean isValidMove(int row, int col) {
+        return (row >= 1 && row <= 10 && col >= 1 && col <= 10 && board[row][col] == 0);
     }
 
     // Main method for testing
     public static void main(String[] args) {
-        int[][] board = {
-            {1, 0, 0, -1, 0, 0, 0, 0, 0, 0},
-            {-1, -1, -1, -1, 0, 0, 0, 0, 0, 0},
-            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-            {0, 0, 0, 0, 0, 0, 0, 0, 0, 2}
-        };
+        int[][] board = new int[11][11];
+        for (int i = 1; i <= 10; i++) {
+            for (int j = 1; j <= 10; j++) {
+                board[i][j] = 0;
+            }
+        }
+        // Test positions
+        board[5][5] = 1;
+        board[4][5] = -1;
+        board[4][6] = -1;
+        board[5][4] = -1;
+        board[5][6] = -1;
+        board[6][4] = -1;
+        board[6][5] = -1;
+        board[6][6] = -1;
 
         MoveActionFactory factory = new MoveActionFactory(board, 1);
+
+        // Print queen positions
+        List<List<Integer>> queenPositions = factory.getAllQueenCurrents();
+        System.out.println("Queen positions for player 1:");
+        for (List<Integer> queenPos : queenPositions) {
+            System.out.println("Queen at: " + queenPos);
+        }
+
         List<Map<String, Object>> actions = factory.getActions();
 
         System.out.println("Possible moves for player 1:");

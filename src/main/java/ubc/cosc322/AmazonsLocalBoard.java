@@ -30,7 +30,7 @@ public class AmazonsLocalBoard {
                 state[i][j] = EMPTY;
             }
         }
-
+		
         // Place white queens (Player 1)
         state[4][1] = QUEEN_PLAYER_1;
         state[1][4] = QUEEN_PLAYER_1;
@@ -80,6 +80,7 @@ public class AmazonsLocalBoard {
     }
 
     public void printState() {
+		System.out.println("LOCAL BOARD STATE AFTER MOVE:");
         for (int i = BOARD_SIZE; i >= 1; i--) {
             System.out.println(Arrays.toString(Arrays.copyOfRange(state[i], 1, BOARD_SIZE + 1)));
         }

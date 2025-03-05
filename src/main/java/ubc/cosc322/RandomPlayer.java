@@ -13,9 +13,8 @@ import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
  * The processMove method is overridden to make random moves.
  * 
  * We must get the valid moves for the current player and then randomly select one of them. This is our first milestone
- * before implementing the monte carlo tree search algorithm.
+ * before implementing the Monte Carlo Tree Search algorithm.
  * 
- * NOT COMPLETE: The random player only does one move and does not consider the opponent's moves.
  */
 public class RandomPlayer extends BasePlayer {
 
@@ -27,15 +26,35 @@ public class RandomPlayer extends BasePlayer {
         this.random = new Random();
         this.localBoard = new AmazonsLocalBoard();
     }
-    
+
     @Override
     protected void processMove(Map<String, Object> msgDetails) {
-        Map<String, Object> move = new HashMap<>();
-        move.put(AmazonsGameMessage.QUEEN_POS_CURR, new ArrayList<>(List.of(10, 4)));
-        move.put(AmazonsGameMessage.QUEEN_POS_NEXT, new ArrayList<>(List.of(9, 4)));
-        move.put(AmazonsGameMessage.ARROW_POS, new ArrayList<>(List.of(9, 5)));
-        
-        gamegui.updateGameState(move);
-        gameClient.sendMoveMessage(move);
+        int[][] boardState = localBoard.getState();
+    
+        MoveActionFactory actionFactory = new MoveActionFactory(boardState, localBoard.localPlayer);
+        List<Map<String, Object>> possibleMoves = actionFactory.getActions();
+    
+        if (possibleMoves.isEmpty()) {
+            System.out.println("No valid moves available!");
+            return;
+        }
+    
+        Map<String, Object> selectedMove = possibleMoves.get(random.nextInt(possibleMoves.size()));
+    
+        List<Integer> queenCurrent = (List<Integer>) selectedMove.get(AmazonsGameMessage.QUEEN_POS_CURR);
+        List<Integer> queenTarget = (List<Integer>) selectedMove.get(AmazonsGameMessage.QUEEN_POS_NEXT);
+        List<Integer> arrowTarget = (List<Integer>) selectedMove.get(AmazonsGameMessage.ARROW_POS);
+    
+        MoveAction moveAction = new MoveAction(queenCurrent, queenTarget, arrowTarget);
+        localBoard.updateState(moveAction);
+
+        localBoard.printState();
+    
+        gamegui.updateGameState(selectedMove);
+        gameClient.sendMoveMessage(selectedMove);
+    
+        localBoard.localPlayer = localBoard.getOpponent();
     }
+    
+    
 }

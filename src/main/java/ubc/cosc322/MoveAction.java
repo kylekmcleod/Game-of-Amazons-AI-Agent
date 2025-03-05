@@ -2,6 +2,11 @@ package ubc.cosc322;
 
 import java.util.List;
 
+/* MoveAction.java
+ * 
+ * This class represents a move action in the game. It contains the current queen position, the target queen position, and the target arrow position.
+ * Use this to update the local board state and send the move to the game server.
+ */
 public class MoveAction {
     List<Integer> queenCurrent;
     private List<Integer> queenTarget;
