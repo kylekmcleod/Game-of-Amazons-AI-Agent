@@ -18,7 +18,6 @@ import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
  * The monte carlo player class extends the BasePlayer class and overrides the processMove method to make a move using the monte carlo algorithm.
  */
 public abstract class BasePlayer extends GamePlayer {
-
     protected GameClient gameClient = null;
     protected BaseGameGUI gamegui = null;
     protected String userName;
@@ -40,7 +39,6 @@ public abstract class BasePlayer extends GamePlayer {
         int localPlayer = whitePlayer.equals(userName) ? 1 : 2;
 
         System.out.println("***** PLAYER INFO: " + userName + " (Player " + localPlayer + ") *****");
-
         if (localPlayer == 2) {
             processMove(msgDetails);
         } else {
@@ -77,6 +75,7 @@ public abstract class BasePlayer extends GamePlayer {
         }
         return true;
     }
+    
 
     @Override
     public String userName() {

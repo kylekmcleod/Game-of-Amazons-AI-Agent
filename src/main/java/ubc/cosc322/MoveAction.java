@@ -3,7 +3,7 @@ package ubc.cosc322;
 import java.util.List;
 
 public class MoveAction {
-    private List<Integer> queenCurrent;
+    List<Integer> queenCurrent;
     private List<Integer> queenTarget;
     private List<Integer> arrowTarget;
 
@@ -11,6 +11,18 @@ public class MoveAction {
         this.queenCurrent = queenCurrent;
         this.queenTarget = queenTarget;
         this.arrowTarget = arrowTarget;
+    }
+
+    public List<Integer> getQueenCurrent() {
+        return queenCurrent;
+    }
+
+    public List<Integer> getQueenTarget() {
+        return queenTarget;
+    }
+
+    public List<Integer> getArrowTarget() {
+        return arrowTarget;
     }
 
     @Override

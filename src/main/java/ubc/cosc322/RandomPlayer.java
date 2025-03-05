@@ -20,10 +20,12 @@ import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
 public class RandomPlayer extends BasePlayer {
 
     private Random random;
+    private AmazonsLocalBoard localBoard;
 
     public RandomPlayer(String userName, String passwd) {
         super(userName, passwd);
         this.random = new Random();
+        this.localBoard = new AmazonsLocalBoard();
     }
     
     @Override

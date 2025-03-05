@@ -78,6 +78,7 @@ public class MoveActionFactory {
         return x >= 1 && x <= 10 && y >= 1 && y <= 10 && board[9 - (x - 1)][y - 1] == 0;
     }
 
+    // Main method for testing
     public static void main(String[] args) {
         int[][] board = {
             {1, 0, 0, -1, 0, 0, 0, 0, 0, 0},
@@ -95,7 +96,6 @@ public class MoveActionFactory {
         MoveActionFactory factory = new MoveActionFactory(board, 1);
         List<Map<String, Object>> actions = factory.getActions();
 
-        // Print out all possible moves
         System.out.println("Possible moves for player 1:");
         for (Map<String, Object> move : actions) {
             System.out.println(move);
