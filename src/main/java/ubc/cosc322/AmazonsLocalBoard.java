@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /* AmazonsLocalBoard.java
+ *
  * This class represents the local board state of the game. It contains the board state as a 2D array and methods to update the board state.
  * Each time a player makes a move, the board state is updated. The board state is then sent to the MoveActionFactory to generate all possible
  * moves for the current player.
