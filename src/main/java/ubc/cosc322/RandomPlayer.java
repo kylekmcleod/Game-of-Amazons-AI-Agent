@@ -43,7 +43,6 @@ public class RandomPlayer extends BasePlayer {
     
         MoveAction moveAction = new MoveAction(queenCurrent, queenTarget, arrowTarget);
         localBoard.updateState(moveAction);
-        localBoard.printState();
     
         gamegui.updateGameState(selectedMove);
         gameClient.sendMoveMessage(selectedMove);

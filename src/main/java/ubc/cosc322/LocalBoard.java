@@ -90,7 +90,7 @@ public class LocalBoard {
     }
 
     public void printState() {
-		System.out.println("LOCAL BOARD STATE AFTER MOVE:");
+		System.out.println("LOCAL BOARD STATE AFTER " + localPlayer + "'s MOVE:");
         for (int i = BOARD_SIZE; i >= 1; i--) {
             System.out.println(Arrays.toString(Arrays.copyOfRange(state[i], 1, BOARD_SIZE + 1)));
         }
