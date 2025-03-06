@@ -10,14 +10,9 @@ import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
  * 
  * This class generates all possible moves for the current player. It takes the current board state as a 2D array and the current player as input.
  * 
- * WARNING:
- * This class creates an 11x11 array so we can use 1-based indexing. This means we MUST ignore the 0th row and 0th column.
+ * The board generated in AmazonsLocalBoard is an 11x11 2D array because the moves are 1 indexed. Therefore, this algorithm ignores
+ * the 0th row and 0th column.
  * 
- * EXAMPLES:
- * board[1][1] is the bottom-left corner of the board.
- * board[10][10] is the top-right corner of the board.
- * board[0][0] is still in bounds, but we don't use it.
- * board[0][1] is still in bounds, but we don't use it.
  */
 public class MoveActionFactory {
 

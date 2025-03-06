@@ -8,8 +8,18 @@ import java.util.List;
  * This class represents the local board state of the game. It contains the board state as a 2D array and methods to update the board state.
  * Each time a player makes a move, the board state is updated. The board state is then sent to the MoveActionFactory to generate all possible
  * moves for the current player.
+ * 
+ * WARNING:
+ * The game is 1 indexed, so this class creates an 11x11 2D array so we can use 1-based indexing. 
+ * This means we MUST ignore the 0th row and 0th column.
+ * 
+ * EXAMPLES:
+ * board[1][1] is the bottom-left corner of the board.
+ * board[10][10] is the top-right corner of the board.
+ * board[0][0] is still in bounds, but we don't use it.
+ * board[0][1] is still in bounds, but we don't use it.
  */
-public class AmazonsLocalBoard {
+public class LocalBoard {
     private static final int BOARD_SIZE = 10;
 
     public static final int EMPTY = 0;
@@ -19,7 +29,7 @@ public class AmazonsLocalBoard {
     public int localPlayer = 2;
     private int[][] state = new int[BOARD_SIZE + 1][BOARD_SIZE + 1];
 
-    public AmazonsLocalBoard() {
+    public LocalBoard() {
         initializeDefaultBoard();
     }
 
@@ -87,8 +97,8 @@ public class AmazonsLocalBoard {
         System.out.println();
     }
 
-    public AmazonsLocalBoard copy() {
-        AmazonsLocalBoard copy = new AmazonsLocalBoard();
+    public LocalBoard copy() {
+        LocalBoard copy = new LocalBoard();
         copy.localPlayer = localPlayer;
         for (int i = 1; i <= BOARD_SIZE; i++) {
             System.arraycopy(state[i], 1, copy.state[i], 1, BOARD_SIZE);
@@ -102,7 +112,7 @@ public class AmazonsLocalBoard {
 
 	// Main method for testing
 	public static void main(String[] args) {
-		AmazonsLocalBoard board = new AmazonsLocalBoard();
+		LocalBoard board = new LocalBoard();
 		System.out.println("\nInitial Board State:");
 		board.printState();
 
