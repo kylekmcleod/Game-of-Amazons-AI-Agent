@@ -22,11 +22,14 @@ public abstract class BasePlayer extends GamePlayer {
     protected BaseGameGUI gamegui = null;
     protected String userName;
     protected String passwd;
+    protected int localPlayer;
+    protected LocalBoard localBoard;
 
     public BasePlayer(String userName, String passwd) {
         this.userName = userName;
         this.passwd = passwd;
         this.gamegui = new BaseGameGUI(this);
+        this.localBoard = new LocalBoard();
     }
 
     protected abstract void processMove(Map<String, Object> msgDetails);
@@ -35,10 +38,13 @@ public abstract class BasePlayer extends GamePlayer {
         if (gamegui == null) {
             gamegui.updateGameState(msgDetails);
         }
+
         String whitePlayer = (String) msgDetails.get(AmazonsGameMessage.PLAYER_WHITE);
-        int localPlayer = whitePlayer.equals(userName) ? 1 : 2;
+        localPlayer = whitePlayer.equals(userName) ? 1 : 2;
 
         System.out.println("***** PLAYER INFO: " + userName + " (Player " + localPlayer + ") *****");
+        localBoard.setLocalPlayer(localPlayer);
+
         if (localPlayer == 2) {
             processMove(msgDetails);
         } else {
@@ -65,6 +71,15 @@ public abstract class BasePlayer extends GamePlayer {
                 gamegui.setGameState((ArrayList<Integer>) msgDetails.get(AmazonsGameMessage.GAME_STATE));
                 break;
             case GameMessage.GAME_ACTION_MOVE:
+                ArrayList<Integer> queenCurrent = getServerMsg(msgDetails, "queen-position-current");
+                ArrayList<Integer> queenTarget = getServerMsg(msgDetails, "queen-position-next");
+                ArrayList<Integer> arrowTarget = getServerMsg(msgDetails, "arrow-position");
+
+                MoveAction moveAction = new MoveAction(queenCurrent, queenTarget, arrowTarget);
+                localBoard.updateState(moveAction);
+                localBoard.printState();
+                gamegui.updateGameState(queenCurrent, queenTarget, arrowTarget);
+
                 processMove(msgDetails);
                 break;
             case GameMessage.GAME_ACTION_START:
@@ -76,6 +91,12 @@ public abstract class BasePlayer extends GamePlayer {
         return true;
     }
     
+    public int getLocalPlayer() {
+        return localPlayer;
+    }
+    private <T extends Object> T getServerMsg(Map<String, Object> messages, String tag) {
+        return (T) messages.get(tag);
+    }
 
     @Override
     public String userName() {

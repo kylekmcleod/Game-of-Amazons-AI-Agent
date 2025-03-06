@@ -110,6 +110,10 @@ public class LocalBoard {
         return localPlayer == 2 ? 1 : 2;
     }
 
+    public void setLocalPlayer(int localPlayer) {
+        this.localPlayer = localPlayer;
+    }
+
 	// Main method for testing
 	public static void main(String[] args) {
 		LocalBoard board = new LocalBoard();

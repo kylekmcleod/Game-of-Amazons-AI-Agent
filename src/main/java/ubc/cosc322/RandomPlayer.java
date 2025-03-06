@@ -1,8 +1,6 @@
 package ubc.cosc322;
 
 import java.util.Map;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
 import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
@@ -19,12 +17,10 @@ import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
 public class RandomPlayer extends BasePlayer {
 
     private Random random;
-    private LocalBoard localBoard;
 
     public RandomPlayer(String userName, String passwd) {
         super(userName, passwd);
         this.random = new Random();
-        this.localBoard = new LocalBoard();
     }
 
     @Override
@@ -47,7 +43,6 @@ public class RandomPlayer extends BasePlayer {
     
         MoveAction moveAction = new MoveAction(queenCurrent, queenTarget, arrowTarget);
         localBoard.updateState(moveAction);
-
         localBoard.printState();
     
         gamegui.updateGameState(selectedMove);
@@ -55,6 +50,4 @@ public class RandomPlayer extends BasePlayer {
     
         localBoard.localPlayer = localBoard.getOpponent();
     }
-    
-    
 }
