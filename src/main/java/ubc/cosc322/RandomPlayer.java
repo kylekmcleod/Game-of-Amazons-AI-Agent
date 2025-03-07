@@ -46,7 +46,5 @@ public class RandomPlayer extends BasePlayer {
     
         gamegui.updateGameState(selectedMove);
         gameClient.sendMoveMessage(selectedMove);
-    
-        localBoard.localPlayer = localBoard.getOpponent();
     }
 }
