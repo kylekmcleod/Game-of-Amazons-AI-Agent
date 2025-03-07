@@ -43,7 +43,7 @@ public abstract class BasePlayer extends GamePlayer {
         localPlayer = whitePlayer.equals(userName) ? 1 : 2;
 
         System.out.println("***** PLAYER INFO: " + userName + " (Player " + localPlayer + ") *****");
-        localBoard.setLocalPlayer(localPlayer);
+        localBoard.setLocalPlayer(2);
 
         if (localPlayer == 2) {
             processMove(msgDetails);
@@ -60,12 +60,11 @@ public abstract class BasePlayer extends GamePlayer {
             gamegui.setRoomInformation(gameClient.getRoomList());
         }
     }
-
     @Override
     public boolean handleGameMessage(String messageType, Map<String, Object> msgDetails) {
         System.out.println("Received game message: " + messageType);
         System.out.println("Details: " + msgDetails);
-
+    
         switch (messageType) {
             case GameMessage.GAME_STATE_BOARD:
                 gamegui.setGameState((ArrayList<Integer>) msgDetails.get(AmazonsGameMessage.GAME_STATE));
@@ -74,14 +73,19 @@ public abstract class BasePlayer extends GamePlayer {
                 ArrayList<Integer> queenCurrent = getServerMsg(msgDetails, "queen-position-current");
                 ArrayList<Integer> queenTarget = getServerMsg(msgDetails, "queen-position-next");
                 ArrayList<Integer> arrowTarget = getServerMsg(msgDetails, "arrow-position");
-
+            
                 MoveAction moveAction = new MoveAction(queenCurrent, queenTarget, arrowTarget);
                 localBoard.updateState(moveAction);
                 localBoard.printState();
                 gamegui.updateGameState(queenCurrent, queenTarget, arrowTarget);
-
-                processMove(msgDetails);
+            
+                if (localBoard.localPlayer != localPlayer) {  
+                    localBoard.localPlayer = localPlayer;
+                    processMove(msgDetails);
+                }
+                localBoard.localPlayer = (localPlayer == 1) ? 2 : 1;
                 break;
+            
             case GameMessage.GAME_ACTION_START:
                 handleGameStart(msgDetails);
                 break;
@@ -90,6 +94,9 @@ public abstract class BasePlayer extends GamePlayer {
         }
         return true;
     }
+    
+    
+    
     
     public int getLocalPlayer() {
         return localPlayer;
