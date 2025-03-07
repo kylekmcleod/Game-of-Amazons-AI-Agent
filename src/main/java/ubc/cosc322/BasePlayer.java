@@ -43,7 +43,7 @@ public abstract class BasePlayer extends GamePlayer {
         localPlayer = whitePlayer.equals(userName) ? 1 : 2;
 
         System.out.println("***** PLAYER INFO: " + userName + " (Player " + localPlayer + ") *****");
-        localBoard.setLocalPlayer(2);
+        localBoard.setLocalPlayer(localPlayer);
 
         if (localPlayer == 2) {
             processMove(msgDetails);
@@ -68,6 +68,7 @@ public abstract class BasePlayer extends GamePlayer {
         switch (messageType) {
             case GameMessage.GAME_STATE_BOARD:
                 gamegui.setGameState((ArrayList<Integer>) msgDetails.get(AmazonsGameMessage.GAME_STATE));
+                localBoard.localPlayer = localPlayer;
                 break;
             case GameMessage.GAME_ACTION_MOVE:
                 ArrayList<Integer> queenCurrent = getServerMsg(msgDetails, "queen-position-current");
@@ -78,12 +79,8 @@ public abstract class BasePlayer extends GamePlayer {
                 localBoard.updateState(moveAction);
                 localBoard.printState();
                 gamegui.updateGameState(queenCurrent, queenTarget, arrowTarget);
-            
-                if (localBoard.localPlayer != localPlayer) {  
-                    localBoard.localPlayer = localPlayer;
-                    processMove(msgDetails);
-                }
-                localBoard.localPlayer = (localPlayer == 1) ? 2 : 1;
+
+                processMove(msgDetails);
                 break;
             
             case GameMessage.GAME_ACTION_START:
