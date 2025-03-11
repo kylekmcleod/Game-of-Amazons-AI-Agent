@@ -6,6 +6,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
+
 import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
 
 /* MonteCarloPlayer.java (incomplete)
@@ -16,6 +18,10 @@ import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
  * Complete the random player first before implementing the monte carlo tree search algorithm.
  */
 public class MonteCarloPlayer extends BasePlayer {
+    private TreeNode root;
+
+    private final long MAX_RUNTIME = 5000;
+    private final double EXPLORATION_FACTOR = Math.sqrt(2);
 
     public MonteCarloPlayer(String userName, String passwd) {
         super(userName, passwd);
@@ -23,8 +29,8 @@ public class MonteCarloPlayer extends BasePlayer {
     
     @Override
     protected void processMove(Map<String, Object> msgDetails) {
-        // Do process move here
-        // Do not complete this until we have a working random player
+        root = new TreeNode(localBoard);
+
     }
 
     private class TreeNode {
@@ -40,7 +46,10 @@ public class MonteCarloPlayer extends BasePlayer {
             this.parent = parent;
             this.action = action;
         }
-    
+        public TreeNode(LocalBoard board) {
+			this(board, null, null);
+		}
+
         public void addChild(LocalBoard newBoard, MoveAction action) {
             children.add(new TreeNode(newBoard, this, action));
         }
@@ -52,6 +61,61 @@ public class MonteCarloPlayer extends BasePlayer {
         public int getWins() {
             return wins;
         }
+
+        public MoveAction getAction() {
+            return action;
+        }
+
+        private double getUCB() {
+            if (visits == 0) {
+                return Double.MAX_VALUE;
+            }
+
+            double uct = (double) wins / visits;
+            if (parent != null) {
+                uct += EXPLORATION_FACTOR * Math.sqrt(Math.log(parent.visits) / visits);
+            }
+
+            return uct;
+        }
+
+        public TreeNode expand() {
+            MoveActionFactory actionFactory = new MoveActionFactory(board.getState(), 2);
+            List<Map<String, Object>> possibleMoves = actionFactory.getActions();
+
+            if (possibleMoves.isEmpty() || possibleMoves.size() == children.size()) {
+                return null;
+            }
+        
+            for (Map<String, Object> move : possibleMoves) {
+                boolean alreadyExists = false;
+                List<Integer> queenCurrent = (List<Integer>) move.get(AmazonsGameMessage.QUEEN_POS_CURR);
+                List<Integer> queenTarget = (List<Integer>) move.get(AmazonsGameMessage.QUEEN_POS_NEXT);
+                List<Integer> arrowTarget = (List<Integer>) move.get(AmazonsGameMessage.ARROW_POS);
+                MoveAction moveAction = new MoveAction(queenCurrent, queenTarget, arrowTarget);
+
+                for (TreeNode child : children) {
+                    if (child.action.equals(moveAction)) {
+                        alreadyExists = true;
+                        break;
+                    }
+                }
+        
+                if (!alreadyExists) {
+                    LocalBoard newBoard = board.copy();
+                    newBoard.updateState(moveAction);
+                    newBoard.localPlayer = (board.localPlayer == 1) ? 2 : 1;
+        
+                    TreeNode newChild = new TreeNode(newBoard, this, moveAction);
+                    children.add(newChild);
+                    
+                    return newChild;
+                }
+            }
+        
+            return null;
+        }
+        
     }
 
     public static void testTreeNode() {
@@ -126,9 +190,53 @@ public class MonteCarloPlayer extends BasePlayer {
         }
     }
 
+    public static void testExpandMethod() {
+        System.out.println("Testing expand() method...");
+    
+        // Create initial board state
+        LocalBoard rootBoard = new LocalBoard();
+        TreeNode rootNode = new MonteCarloPlayer("test", "test").new TreeNode(rootBoard, null, null);
+    
+        // Expand once
+        TreeNode newChild = rootNode.expand();
+        
+        if (newChild == null) {
+            System.out.println("ERROR: expand() returned null when it should have expanded a move.");
+        } else {
+            System.out.println("SUCCESS: expand() created a new child node.");
+            System.out.println("MoveAction: " + newChild.getAction());
+        }
+    
+        // Expand multiple times
+        List<TreeNode> createdChildren = new ArrayList<>();
+        while (true) {
+            TreeNode nextChild = rootNode.expand();
+            if (nextChild == null) {
+                break;
+            }
+            createdChildren.add(nextChild);
+        }
+    
+        System.out.println("Total children created: " + createdChildren.size());
+        
+        if (createdChildren.isEmpty()) {
+            System.out.println("ERROR: No children were created by expand().");
+        } else {
+            System.out.println("SUCCESS: expand() created multiple valid child nodes.");
+        }
+    
+        // Try expanding again (should return null now)
+        if (rootNode.expand() == null) {
+            System.out.println("SUCCESS: expand() correctly stops when all moves are explored.");
+        } else {
+            System.out.println("ERROR: expand() is creating duplicate children.");
+        }
+    }
+    
+
     // Main method for testing
     public static void main(String[] args) {
-        testTreeNode();
+        testExpandMethod();
     }
 }
 
