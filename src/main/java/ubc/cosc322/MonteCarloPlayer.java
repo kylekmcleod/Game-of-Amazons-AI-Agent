@@ -6,22 +6,24 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.ThreadLocalRandom;
-
 import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
 
-/* MonteCarloPlayer.java (incomplete)
+/* MonteCarloPlayer.java
  *
- * A monte carlo player that makes moves using the monte carlo tree search algorithm. It extends the BasePlayer class.
- * The processMove method is overridden to make moves using the monte carlo tree search algorithm.
+ * A monte carlo player that makes moves using the monte carlo tree search algorithm.
+ * It extends the BasePlayer class and overrides the processMove method to select moves
+ * based on simulated playouts.
+ *
+ * The bot is very weak at this current state. It only visits nodes 1 to 3 times early game.
+ * It is able to beat a random player every time, but it is not able to beat a good human player.
+ *
+ * TODO:
+ * - Fine tune the bot so it picks better moves early game 
  * 
- * Complete the random player first before implementing the monte carlo tree search algorithm.
  */
 public class MonteCarloPlayer extends BasePlayer {
-    private TreeNode root;
-
-    private final long MAX_RUNTIME = 5000;
-    private final double EXPLORATION_FACTOR = Math.sqrt(2);
+    private static final int ITERATIONS = 5000;
+    private Random random = new Random();
 
     public MonteCarloPlayer(String userName, String passwd) {
         super(userName, passwd);
@@ -29,214 +31,221 @@ public class MonteCarloPlayer extends BasePlayer {
     
     @Override
     protected void processMove(Map<String, Object> msgDetails) {
-        root = new TreeNode(localBoard);
+        LocalBoard rootBoard = localBoard.copy();
+        int ourPlayer = localBoard.getLocalPlayer();
+        System.out.println(ourPlayer);
+        
 
+        TreeNode rootNode = new TreeNode(rootBoard, null, null);
+        System.out.println("Starting MCTS with " + ITERATIONS + " iterations");
+        
+        for (int i = 0; i < ITERATIONS; i++) {
+            // Step 1: Selection
+            TreeNode selectedNode = treePolicy(rootNode);
+            
+            // Step 2: Simulation
+            LocalBoard simulationBoard = selectedNode.board.copy();
+            boolean simulationResult = simulatePlayout(simulationBoard, ourPlayer);
+            int result = simulationResult ? 1 : 0;
+            
+            // Step 3: Backpropagation
+            backpropagate(selectedNode, result);
+            
+            if (i % 100 == 0) {
+                System.out.println("Iteration: " + i + " out of " + ITERATIONS);
+            }
+        }
+        printBestMoves(rootNode);
+        
+        TreeNode bestChild = null;
+        double bestScore = -1;
+        for (TreeNode child : rootNode.children) {
+            double winRatio = child.visits > 0 ? (double) child.wins / child.visits : 0;
+            if (winRatio > bestScore) {
+                bestScore = winRatio;
+                bestChild = child;
+            }
+        }
+
+        if (bestChild == null || bestChild.action == null) {
+            System.out.println("No valid move selected by MCTS!");
+            return;
+        }
+
+        MoveAction moveAction = bestChild.action;
+        localBoard.updateState(moveAction);
+        
+        Map<String, Object> moveMsg = new HashMap<>();
+        moveMsg.put(AmazonsGameMessage.QUEEN_POS_CURR, new ArrayList<>(moveAction.getQueenCurrent()));
+        moveMsg.put(AmazonsGameMessage.QUEEN_POS_NEXT, new ArrayList<>(moveAction.getQueenTarget()));
+        moveMsg.put(AmazonsGameMessage.ARROW_POS, new ArrayList<>(moveAction.getArrowTarget()));
+        
+        gamegui.updateGameState(moveMsg);
+        gameClient.sendMoveMessage(moveMsg);
+        }
+
+    private boolean isTerminal(LocalBoard board) {
+        int currentPlayer = board.getLocalPlayer();
+        MoveActionFactory factory = new MoveActionFactory(board.getState(), currentPlayer);
+        return factory.getActions().isEmpty();
     }
 
-    private class TreeNode {
-        LocalBoard board;
-        TreeNode parent;
-        List<TreeNode> children = new ArrayList<>();
-        MoveAction action;
-        int wins = 0;
-        int visits = 0;
-    
-        public TreeNode(LocalBoard board, TreeNode parent, MoveAction action) {
-            this.board = board.copy();
-            this.parent = parent;
-            this.action = action;
-        }
-        public TreeNode(LocalBoard board) {
-			this(board, null, null);
-		}
-
-        public void addChild(LocalBoard newBoard, MoveAction action) {
-            children.add(new TreeNode(newBoard, this, action));
-        }
-    
-        public int getVisits() { 
-            return visits; 
-        }
+    private TreeNode bestUCTChild(TreeNode node) {
+        TreeNode bestChild = null;
+        double bestUCT = Double.NEGATIVE_INFINITY;
+        double C = Math.sqrt(2);
+        boolean isOurPlayerTurn = (node.board.getLocalPlayer() == localBoard.getLocalPlayer());
         
-        public int getWins() {
-            return wins;
-        }
-
-        public MoveAction getAction() {
-            return action;
-        }
-
-        private double getUCB() {
-            if (visits == 0) {
-                return Double.MAX_VALUE;
-            }
-
-            double uct = (double) wins / visits;
-            if (parent != null) {
-                uct += EXPLORATION_FACTOR * Math.sqrt(Math.log(parent.visits) / visits);
-            }
-
-            return uct;
-        }
-
-        public TreeNode expand() {
-            MoveActionFactory actionFactory = new MoveActionFactory(board.getState(), 2);
-            List<Map<String, Object>> possibleMoves = actionFactory.getActions();
-
-            if (possibleMoves.isEmpty() || possibleMoves.size() == children.size()) {
-                return null;
+        for (TreeNode child : node.children) {
+            double exploitation = (child.visits > 0) ? (double) child.wins / child.visits : 0;
+            
+            if (!isOurPlayerTurn) {
+                exploitation = 1 - exploitation;
             }
         
-            for (Map<String, Object> move : possibleMoves) {
-                boolean alreadyExists = false;
-                List<Integer> queenCurrent = (List<Integer>) move.get(AmazonsGameMessage.QUEEN_POS_CURR);
-                List<Integer> queenTarget = (List<Integer>) move.get(AmazonsGameMessage.QUEEN_POS_NEXT);
-                List<Integer> arrowTarget = (List<Integer>) move.get(AmazonsGameMessage.ARROW_POS);
-                MoveAction moveAction = new MoveAction(queenCurrent, queenTarget, arrowTarget);
+            double exploration = C * Math.sqrt(Math.log(node.visits) / (child.visits + 1e-10));
+            double uctValue = exploitation + exploration;
 
-                for (TreeNode child : children) {
-                    if (child.action.equals(moveAction)) {
-                        alreadyExists = true;
-                        break;
-                    }
-                }
-        
-                if (!alreadyExists) {
-                    LocalBoard newBoard = board.copy();
-                    newBoard.updateState(moveAction);
-                    newBoard.localPlayer = (board.localPlayer == 1) ? 2 : 1;
-        
-                    TreeNode newChild = new TreeNode(newBoard, this, moveAction);
-                    children.add(newChild);
-                    
-                    return newChild;
-                }
+            if (uctValue > bestUCT) {
+                bestUCT = uctValue;
+                bestChild = child;
             }
-        
-            return null;
+        }
+
+        if (bestChild == null && !node.children.isEmpty()) {
+            bestChild = node.children.get(0);
         }
         
+        return bestChild;
     }
 
-    public static void testTreeNode() {
-        /*
-         * 
-         * The tree structure looks like this:
-         *
-         *                 Initial Board           (Root Node)
-         *                /     |      \
-         *           Move1    Move2    Move(n)     (Find all moves and create a child node for each move)
-         *         /   |   \ 
-         *    Move1  Move2 Move(n)                 (Find all moves FROM THE PARENT and create a child node for each move. Do for all parent nodes)
-         *
-         * 
-         * Here, the root board is the starting point of the game.
-         * The root node has num of possible moves children, each representing a move action.
-         *
-         * Each child node is independent, with its own board state reflecting the result
-         * of the move applied to its parent board.
-         */
-        System.out.println("Testing TreeNode Structure...");
-        
-        // Create initial board
-        LocalBoard rootBoard = new LocalBoard();
-        TreeNode rootNode = new MonteCarloPlayer("test", "test").new TreeNode(rootBoard, null, null);
-
-        // Sample move action
-        MoveAction move1 = new MoveAction(Arrays.asList(10, 4), Arrays.asList(9, 4), Arrays.asList(9, 5));
-        MoveAction move2 = new MoveAction(Arrays.asList(1, 4), Arrays.asList(2, 4), Arrays.asList(2, 5));
-        MoveAction move3 = new MoveAction(Arrays.asList(7, 10), Arrays.asList(6, 10), Arrays.asList(6, 9));
-        MoveAction move4 = new MoveAction(Arrays.asList(1, 7), Arrays.asList(2, 7), Arrays.asList(2, 6));
-
-        // Add children to first level (moves from base state)
-        LocalBoard childBoard1 = rootBoard.copy();
-        childBoard1.updateState(move1);
-        rootNode.addChild(childBoard1, move1);
-
-        LocalBoard childBoard2 = rootBoard.copy();
-        childBoard2.updateState(move2);
-        rootNode.addChild(childBoard2, move2);
-
-        LocalBoard childBoard3 = rootBoard.copy();
-        childBoard3.updateState(move3);
-        rootNode.addChild(childBoard3, move3);
-
-        // Add children to second level (moves from child 1)
-        LocalBoard childBoard4 = childBoard1.copy();
-        childBoard4.updateState(move4);
-        rootNode.children.get(0).addChild(childBoard4, move4);
-
-        // Print the board states
-        System.out.println("Root Board:");
-        rootBoard.printState();
-
-        System.out.println("Child Board 1:");
-        rootNode.children.get(0).board.printState();
-
-        System.out.println("Child Board 2:");
-        rootNode.children.get(1).board.printState();
-
-        System.out.println("Child Board 3:");
-        rootNode.children.get(2).board.printState();
-
-        System.out.println("Child Board 4 (from Board 1):");
-        rootNode.children.get(0).children.get(0).board.printState();
-
-        // Check if the root board is unchanged
-        if (Arrays.deepEquals(rootBoard.getState(), childBoard1.getState())) {
-            System.out.println("ERROR: Root board was modified!");
-        } else {
-            System.out.println("SUCCESS: Root board remains unchanged.");
-        }
-    }
-
-    public static void testExpandMethod() {
-        System.out.println("Testing expand() method...");
-    
-        // Create initial board state
-        LocalBoard rootBoard = new LocalBoard();
-        TreeNode rootNode = new MonteCarloPlayer("test", "test").new TreeNode(rootBoard, null, null);
-    
-        // Expand once
-        TreeNode newChild = rootNode.expand();
-        
-        if (newChild == null) {
-            System.out.println("ERROR: expand() returned null when it should have expanded a move.");
-        } else {
-            System.out.println("SUCCESS: expand() created a new child node.");
-            System.out.println("MoveAction: " + newChild.getAction());
-        }
-    
-        // Expand multiple times
-        List<TreeNode> createdChildren = new ArrayList<>();
-        while (true) {
-            TreeNode nextChild = rootNode.expand();
-            if (nextChild == null) {
+    private TreeNode treePolicy(TreeNode node) {
+        while (!isTerminal(node.board)) {
+            if (!node.untriedMoves.isEmpty()) {
+                return expand(node);
+            }
+            else if (!node.children.isEmpty()) {
+                node = bestUCTChild(node);
+            }
+            else {
                 break;
             }
-            createdChildren.add(nextChild);
         }
-    
-        System.out.println("Total children created: " + createdChildren.size());
+        return node;
+    }
+
+    private TreeNode expand(TreeNode node) {
+        if (node.untriedMoves.isEmpty()) {
+            return node;
+        }
+
+        int index = random.nextInt(node.untriedMoves.size());
+        Map<String, Object> moveMap = node.untriedMoves.remove(index);
+
+        List<Integer> queenCurrent = (List<Integer>) moveMap.get(AmazonsGameMessage.QUEEN_POS_CURR);
+        List<Integer> queenTarget = (List<Integer>) moveMap.get(AmazonsGameMessage.QUEEN_POS_NEXT);
+        List<Integer> arrowTarget = (List<Integer>) moveMap.get(AmazonsGameMessage.ARROW_POS);
+        MoveAction moveAction = new MoveAction(queenCurrent, queenTarget, arrowTarget);
         
-        if (createdChildren.isEmpty()) {
-            System.out.println("ERROR: No children were created by expand().");
-        } else {
-            System.out.println("SUCCESS: expand() created multiple valid child nodes.");
-        }
-    
-        // Try expanding again (should return null now)
-        if (rootNode.expand() == null) {
-            System.out.println("SUCCESS: expand() correctly stops when all moves are explored.");
-        } else {
-            System.out.println("ERROR: expand() is creating duplicate children.");
+        LocalBoard newBoard = node.board.copy();
+        newBoard.updateState(moveAction);
+
+        TreeNode childNode = new TreeNode(newBoard, node, moveAction);
+        node.children.add(childNode);
+        
+        return childNode;
+    }
+
+    private boolean simulatePlayout(LocalBoard board, int ourPlayer) {
+        LocalBoard simulationBoard = board.copy();
+        int currentPlayer = simulationBoard.getLocalPlayer();
+        
+        while (true) {
+            MoveActionFactory factory = new MoveActionFactory(simulationBoard.getState(), currentPlayer);
+            List<Map<String, Object>> moves = factory.getActions();
+            
+            if (moves.isEmpty()) {
+                int winner = (currentPlayer == 1) ? 2 : 1;
+                return winner == ourPlayer;
+            }
+            
+            Map<String, Object> moveMap = moves.get(random.nextInt(moves.size()));
+            List<Integer> queenCurrent = (List<Integer>) moveMap.get(AmazonsGameMessage.QUEEN_POS_CURR);
+            List<Integer> queenTarget = (List<Integer>) moveMap.get(AmazonsGameMessage.QUEEN_POS_NEXT);
+            List<Integer> arrowTarget = (List<Integer>) moveMap.get(AmazonsGameMessage.ARROW_POS);
+            MoveAction moveAction = new MoveAction(queenCurrent, queenTarget, arrowTarget);
+            
+            simulationBoard.updateState(moveAction);
+            
+            currentPlayer = (currentPlayer == 1) ? 2 : 1;
+            simulationBoard.setLocalPlayer(currentPlayer);
         }
     }
-    
+        
+    private void backpropagate(TreeNode node, int result) {
+        TreeNode current = node;
+        int currentResult = result;
+        int ourPlayer = localBoard.getLocalPlayer();
+        
+        while (current != null) {
+            current.visits++;
+            boolean isOurPlayerTurn = (current.board.getLocalPlayer() == ourPlayer);
+            if (isOurPlayerTurn) {
+                current.wins += currentResult;
+            } else {
+                current.wins += (1 - currentResult);
+            }
+            current = current.parent;
+        }
+    }
 
-    // Main method for testing
-    public static void main(String[] args) {
-        testExpandMethod();
+    private void printBestMoves(TreeNode rootNode) {
+        if (!rootNode.children.isEmpty()) {
+            System.out.println("\nBOT TOP MOVES:");
+            rootNode.children.sort((a, b) -> Integer.compare(b.visits, a.visits));
+            
+            int showTopN = Math.min(5, rootNode.children.size());
+            for (int i = 0; i < showTopN; i++) {
+                TreeNode child = rootNode.children.get(i);
+                MoveAction move = child.action;
+
+                int queenXCurrent = move.getQueenCurrent().get(0);
+                int queenYCurrent = move.getQueenCurrent().get(1);
+                int queenXTarget = move.getQueenTarget().get(0);
+                int queenYTarget = move.getQueenTarget().get(1);
+                int arrowXTarget = move.getArrowTarget().get(0);
+                int arrowYTarget = move.getArrowTarget().get(1);
+
+                double winRate = (child.visits > 0) ? 100.0 * child.wins / child.visits : 0.0;
+                String formattedWinRate = String.format("%.2f%%", winRate);
+
+                System.out.print((i + 1) + ". Move:");
+                System.out.print("  Q:(" + queenXCurrent + "," + queenYCurrent + ")");
+                System.out.print("  to (" + queenXTarget + "," + queenYTarget + ")");
+                System.out.print("  A:(" + arrowXTarget + "," + arrowYTarget + ")");
+                System.out.print("  Visits: " + child.visits);
+                System.out.print("  Win rate: " + formattedWinRate);
+                System.out.println();
+
+            }
+        }    
+    }
+        
+    private class TreeNode {
+    LocalBoard board;
+    TreeNode parent;
+    List<TreeNode> children = new ArrayList<>();
+    MoveAction action;
+    int wins = 0;
+    int visits = 0;
+    List<Map<String, Object>> untriedMoves;
+
+    public TreeNode(LocalBoard board, TreeNode parent, MoveAction action) {
+        this.board = board.copy();
+        this.parent = parent;
+        this.action = action;
+        MoveActionFactory factory = new MoveActionFactory(board.getState(), board.getLocalPlayer());
+        this.untriedMoves = factory.getActions();
     }
 }
-
+}
