@@ -114,6 +114,11 @@ public class LocalBoard {
         this.localPlayer = localPlayer;
     }
 
+    public int getLocalPlayer() {
+        return localPlayer;
+    }
+    
+
 	// Main method for testing
 	public static void main(String[] args) {
 		LocalBoard board = new LocalBoard();
