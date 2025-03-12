@@ -22,7 +22,7 @@ import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
  * 
  */
 public class MonteCarloPlayer extends BasePlayer {
-    private static final int ITERATIONS = 5000;
+    private int ITERATIONS = 3000;
     private Random random = new Random();
 
     public MonteCarloPlayer(String userName, String passwd) {
@@ -51,10 +51,11 @@ public class MonteCarloPlayer extends BasePlayer {
             // Step 3: Backpropagation
             backpropagate(selectedNode, result);
             
-            if (i % 100 == 0) {
+            if (i % 1000 == 0) {
                 System.out.println("Iteration: " + i + " out of " + ITERATIONS);
             }
         }
+        ITERATIONS *= 1.2;
         printBestMoves(rootNode);
         
         TreeNode bestChild = null;
