@@ -19,10 +19,11 @@ import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
  *
  * TODO:
  * - Fine tune the bot so it picks better moves early game 
+ * - Add parallelization to the MCTS algorithm
  * 
  */
 public class MonteCarloPlayer extends BasePlayer {
-    private int ITERATIONS = 3000;
+    private int ITERATIONS = 5000;
     private Random random = new Random();
 
     public MonteCarloPlayer(String userName, String passwd) {
@@ -55,7 +56,7 @@ public class MonteCarloPlayer extends BasePlayer {
                 System.out.println("Iteration: " + i + " out of " + ITERATIONS);
             }
         }
-        ITERATIONS *= 1.2;
+        ITERATIONS *= 1.1;
         printBestMoves(rootNode);
         
         TreeNode bestChild = null;
