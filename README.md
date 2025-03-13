@@ -10,7 +10,7 @@ This project uses a [Monte Carlo Search Tree](https://en.wikipedia.org/wiki/Mont
 - Expansion - Add one or more child nodes to explore new possible moves.
 - Simulation - Play out a random game from the expanded node to estimate its outcome.
 - Backpropagation - Propagate the simulation results back up the tree to refine move evaluations.
-- 
+  
 # Monte Carlo Configuration
 The bot can be fine-tuned to run optimally on different systems. The configuration variables can be found at the top of the ```MonteCarloPlayer.java``` class and can be adjusted to balance performance and accuracy.
 ```java
