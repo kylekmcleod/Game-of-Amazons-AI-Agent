@@ -60,21 +60,21 @@ public abstract class BasePlayer extends GamePlayer {
             gamegui.setRoomInformation(gameClient.getRoomList());
         }
     }
-
     @Override
     public boolean handleGameMessage(String messageType, Map<String, Object> msgDetails) {
         System.out.println("Received game message: " + messageType);
         System.out.println("Details: " + msgDetails);
-
+    
         switch (messageType) {
             case GameMessage.GAME_STATE_BOARD:
                 gamegui.setGameState((ArrayList<Integer>) msgDetails.get(AmazonsGameMessage.GAME_STATE));
+                localBoard.localPlayer = localPlayer;
                 break;
             case GameMessage.GAME_ACTION_MOVE:
                 ArrayList<Integer> queenCurrent = getServerMsg(msgDetails, "queen-position-current");
                 ArrayList<Integer> queenTarget = getServerMsg(msgDetails, "queen-position-next");
                 ArrayList<Integer> arrowTarget = getServerMsg(msgDetails, "arrow-position");
-
+            
                 MoveAction moveAction = new MoveAction(queenCurrent, queenTarget, arrowTarget);
                 localBoard.updateState(moveAction);
                 localBoard.printState();
@@ -82,6 +82,7 @@ public abstract class BasePlayer extends GamePlayer {
 
                 processMove(msgDetails);
                 break;
+            
             case GameMessage.GAME_ACTION_START:
                 handleGameStart(msgDetails);
                 break;
@@ -90,6 +91,9 @@ public abstract class BasePlayer extends GamePlayer {
         }
         return true;
     }
+    
+    
+    
     
     public int getLocalPlayer() {
         return localPlayer;

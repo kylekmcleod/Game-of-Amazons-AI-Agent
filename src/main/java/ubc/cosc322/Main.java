@@ -10,8 +10,9 @@ import ygraph.ai.smartfox.games.amazons.HumanPlayer;
  */
 public class Main {
     public static void main(String[] args) {
-        HumanPlayer player = new HumanPlayer();
+        //HumanPlayer player = new HumanPlayer();
         //RandomPlayer player = new RandomPlayer("Player" + (int) (Math.random() * 10000), "2");
+        MonteCarloPlayer player = new MonteCarloPlayer("Player" + (int) (Math.random() * 10000), "2");
 
         if (player.getGameGUI() == null) {
             player.Go();

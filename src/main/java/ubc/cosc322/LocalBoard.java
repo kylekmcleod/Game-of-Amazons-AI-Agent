@@ -26,7 +26,7 @@ public class LocalBoard {
     public static final int QUEEN_PLAYER_1 = 1; // White
     public static final int QUEEN_PLAYER_2 = 2; // Black
 
-    public int localPlayer = 2;
+    public int localPlayer = -100;
     private int[][] state = new int[BOARD_SIZE + 1][BOARD_SIZE + 1];
 
     public LocalBoard() {
@@ -113,6 +113,11 @@ public class LocalBoard {
     public void setLocalPlayer(int localPlayer) {
         this.localPlayer = localPlayer;
     }
+
+    public int getLocalPlayer() {
+        return localPlayer;
+    }
+    
 
 	// Main method for testing
 	public static void main(String[] args) {
