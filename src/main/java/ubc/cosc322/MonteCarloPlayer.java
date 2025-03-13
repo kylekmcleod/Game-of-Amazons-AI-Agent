@@ -14,15 +14,28 @@ import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
  * It extends the BasePlayer class and overrides the processMove method to select moves
  * based on simulated playouts.
  *
- * The bot is very weak at this current state. It only visits nodes 1 to 3 times early game.
- * It is able to beat a random player every time, but it is not able to beat a good human player.
+ * The bot is performing better than previously, but there is still improvement to be made.
+ * We have to be careful to not run out of memory. Each node holds the board state, so there is a
+ * nxn board on each node. This probably isn't optimal, but it's working for now.
+ * 
+ * PARAMETERS:
+ * - ITERATIONS: The number of iterations the MCTS algorithm will run. Higher = better moves, but slower and might run out of memory.
+ * - ITERATIONS_MULTIPLIER: Since there is many possible moves early game, we can increase the number of iterations as the game progresses.
+ * - MAX_DEPTH: The maximum depth the MCTS algorithm will go. Higher = better moves, but slower. Memory might also be an issue.
+ * - PRINT_ITERATIONS: Print the number of iterations every 10000 iterations. DO NOT enable this if we are playing in tournament.
+ * 
  *
  * TODO:
  * - Fine tune the bot so it picks better moves early game 
- * 
+ * - Add parallelization to the MCTS algorithm
+ * - Possibly add a better heuristic
  */
 public class MonteCarloPlayer extends BasePlayer {
-    private static final int ITERATIONS = 5000;
+    private int ITERATIONS = 4000;
+    private static final double ITERATIONS_MULTIPLIER = 1.14;
+    private static final int MAX_DEPTH = 20;
+    private static final boolean PRINT_ITERATIONS = false;
+
     private Random random = new Random();
 
     public MonteCarloPlayer(String userName, String passwd) {
@@ -51,10 +64,11 @@ public class MonteCarloPlayer extends BasePlayer {
             // Step 3: Backpropagation
             backpropagate(selectedNode, result);
             
-            if (i % 100 == 0) {
+            if(PRINT_ITERATIONS && i % 10000 == 0) {
                 System.out.println("Iteration: " + i + " out of " + ITERATIONS);
             }
         }
+        ITERATIONS *= ITERATIONS_MULTIPLIER;
         printBestMoves(rootNode);
         
         TreeNode bestChild = null;
@@ -120,16 +134,16 @@ public class MonteCarloPlayer extends BasePlayer {
     }
 
     private TreeNode treePolicy(TreeNode node) {
-        while (!isTerminal(node.board)) {
+        int depth = 0;
+        while (!isTerminal(node.board) && depth < MAX_DEPTH) {
             if (!node.untriedMoves.isEmpty()) {
                 return expand(node);
-            }
-            else if (!node.children.isEmpty()) {
+            } else if (!node.children.isEmpty()) {
                 node = bestUCTChild(node);
-            }
-            else {
+            } else {
                 break;
             }
+            depth++;
         }
         return node;
     }
@@ -138,23 +152,47 @@ public class MonteCarloPlayer extends BasePlayer {
         if (node.untriedMoves.isEmpty()) {
             return node;
         }
-
-        int index = random.nextInt(node.untriedMoves.size());
-        Map<String, Object> moveMap = node.untriedMoves.remove(index);
-
+    
+        int earlyGameMovesLimit = 200;
+        boolean isEarlyGame = node.parent == null || node.visits < earlyGameMovesLimit;
+    
+        if (isEarlyGame) {
+            node.untriedMoves.sort((move1, move2) -> {
+                int score1 = centerDistHeuristic(move1, node.board);
+                int score2 = centerDistHeuristic(move2, node.board);
+                return Integer.compare(score1, score2);
+            });
+    
+            if (node.untriedMoves.size() > earlyGameMovesLimit) {
+                node.untriedMoves = node.untriedMoves.subList(0, earlyGameMovesLimit);
+            }
+        }
+        Map<String, Object> moveMap = node.untriedMoves.remove(0);
         List<Integer> queenCurrent = (List<Integer>) moveMap.get(AmazonsGameMessage.QUEEN_POS_CURR);
         List<Integer> queenTarget = (List<Integer>) moveMap.get(AmazonsGameMessage.QUEEN_POS_NEXT);
         List<Integer> arrowTarget = (List<Integer>) moveMap.get(AmazonsGameMessage.ARROW_POS);
         MoveAction moveAction = new MoveAction(queenCurrent, queenTarget, arrowTarget);
-        
+
         LocalBoard newBoard = node.board.copy();
         newBoard.updateState(moveAction);
-
+    
         TreeNode childNode = new TreeNode(newBoard, node, moveAction);
         node.children.add(childNode);
         
         return childNode;
     }
+    
+
+    private int centerDistHeuristic(Map<String, Object> moveMap, LocalBoard board) {
+        List<Integer> queenTarget = (List<Integer>) moveMap.get(AmazonsGameMessage.QUEEN_POS_NEXT);
+        int centerX = 10 / 2;
+        int centerY = 10 / 2;
+        
+        int distance = Math.abs(queenTarget.get(0) - centerX) + Math.abs(queenTarget.get(1) - centerY);
+        return distance;
+    }
+
+
 
     private boolean simulatePlayout(LocalBoard board, int ourPlayer) {
         LocalBoard simulationBoard = board.copy();
