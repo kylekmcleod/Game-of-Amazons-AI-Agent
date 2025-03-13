@@ -14,10 +14,10 @@ This project uses a [Monte Carlo Search Tree](https://en.wikipedia.org/wiki/Mont
 # Monte Carlo Configuration
 The bot can be fine-tuned to run optimally on different systems. The configuration variables can be found at the top of the ```MonteCarloPlayer.java``` class and can be adjusted to balance performance and accuracy.
 ```java
-private int ITERATIONS = 4000;                                 // Number of iterations for MCTS search
-private static final int MAX_DEPTH = 20;                       // Depth limit for tree search
-private static final double ITERATIONS_MULTIPLIER = 1.14;      // Multiplier to increase iterations dynamically
-private static final boolean PRINT_ITERATIONS = false;         // Toggle to print iteration count during search
+private int ITERATIONS = 4000;                            // Number of iterations for MCTS search
+private static final int MAX_DEPTH = 20;                  // Depth limit for tree search
+private static final double ITERATIONS_MULTIPLIER = 1.14; // Multiplier to increase iterations dynamically
+private static final boolean PRINT_ITERATIONS = false;    // Toggle to print iteration count during search
 
 ```
 # Project Structure
