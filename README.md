@@ -10,14 +10,23 @@ This project uses a [Monte Carlo Search Tree](https://en.wikipedia.org/wiki/Mont
 - Expansion - Add one or more child nodes to explore new possible moves.
 - Simulation - Play out a random game from the expanded node to estimate its outcome.
 - Backpropagation - Propagate the simulation results back up the tree to refine move evaluations.
+- 
+# Monte Carlo Configuration
+The bot can be fine-tuned to run optimally on different systems. The configuration variables can be found at the top of the ```MonteCarloPlayer.java``` class and can be adjusted to balance performance and accuracy.
+```java
+private int ITERATIONS = 4000;                            // Number of iterations for MCTS search
+private static final int MAX_DEPTH = 20;                  // Depth limit for tree search
+private static final double ITERATIONS_MULTIPLIER = 1.14; // Multiplier to increase iterations dynamically
+private static final boolean PRINT_ITERATIONS = false;    // Toggle to print iteration count during search
 
+```
 # Project Structure
 ```
 ├── src/                                   # Source code directory
 │   ├── docs/                              # Documentation
 │   │   ├── COSC 322 Progress Report.md    # Progress report notes
 │   │   ├── COSC 322 Progress Report.pdf   # Progress report PDF
-│   │   └── Amazons_Strategy.pdf           # Amazons Strategy Booklet
+│   │   └── Amazons_Strategy.pdf           # Amazons strategy Booklet
 │   │   
 │   ├── main/                              # Main source code
 │   │   ├── java/                          # Java source files
@@ -29,8 +38,7 @@ This project uses a [Monte Carlo Search Tree](https://en.wikipedia.org/wiki/Mont
 │   │   │       ├── MoveAction.java        # Store queen & arrow
 │   │   │       └── RandomPlayer.java      # Random moving player
 │   │   │
-│   │   └── resources/                     # Resource files (configs, properties)
-│   │       ├── config.properties          # Configuration file for game settings
+│   │   └── resources/                     # Resource files
 │   │       └── images/                    # Images for GitHub repo
 │   │
 │   └── test/                              # Test source code
