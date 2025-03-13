@@ -16,7 +16,8 @@ This project uses a [Monte Carlo Search Tree](https://en.wikipedia.org/wiki/Mont
 ├── src/                                   # Source code directory
 │   ├── docs/                              # Documentation
 │   │   ├── COSC 322 Progress Report.md    # Progress report notes
-│   │   └── COSC 322 Progress Report.pdf   # Progress report PDF
+│   │   ├── COSC 322 Progress Report.pdf   # Progress report PDF
+│   │   └── Amazons_Strategy.pdf           # Amazons Strategy Booklet
 │   │   
 │   ├── main/                              # Main source code
 │   │   ├── java/                          # Java source files
