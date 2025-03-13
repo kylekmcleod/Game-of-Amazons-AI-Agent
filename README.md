@@ -29,8 +29,7 @@ This project uses a [Monte Carlo Search Tree](https://en.wikipedia.org/wiki/Mont
 │   │   │       ├── MoveAction.java        # Store queen & arrow
 │   │   │       └── RandomPlayer.java      # Random moving player
 │   │   │
-│   │   └── resources/                     # Resource files (configs, properties)
-│   │       ├── config.properties          # Configuration file for game settings
+│   │   └── resources/                     # Resource files
 │   │       └── images/                    # Images for GitHub repo
 │   │
 │   └── test/                              # Test source code
