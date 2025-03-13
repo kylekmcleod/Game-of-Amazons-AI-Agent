@@ -15,7 +15,7 @@ This project uses a [Monte Carlo Search Tree](https://en.wikipedia.org/wiki/Mont
 The bot can be fine-tuned to run optimally on different systems. The configuration variables can be found at the top of the ```MonteCarloPlayer.java``` class and can be adjusted to balance performance and accuracy.
 ```java
 private static final int MAX_DEPTH = 20;
-private static final long maxTimeMillis = 25000; // 25 seconds
+private static final long maxTimeMillis = 25 * 1000; // 25 seconds
 private static final long maxMemoryBytes = 4L * 1024 * 1024 * 1024; // 4 GB
 
 ```
