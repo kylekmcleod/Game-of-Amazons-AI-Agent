@@ -192,8 +192,6 @@ public class MonteCarloPlayer extends BasePlayer {
         return distance;
     }
 
-
-
     private boolean simulatePlayout(LocalBoard board, int ourPlayer) {
         LocalBoard simulationBoard = board.copy();
         int currentPlayer = simulationBoard.getLocalPlayer();
