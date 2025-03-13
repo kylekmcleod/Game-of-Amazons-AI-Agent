@@ -23,7 +23,9 @@ import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
  * 
  */
 public class MonteCarloPlayer extends BasePlayer {
-    private int ITERATIONS = 5000;
+    private int ITERATIONS = 4000;
+    private static final int MAX_DEPTH = 20;
+    private static final boolean PRINT_ITERATIONS = false;
     private Random random = new Random();
 
     public MonteCarloPlayer(String userName, String passwd) {
@@ -52,11 +54,11 @@ public class MonteCarloPlayer extends BasePlayer {
             // Step 3: Backpropagation
             backpropagate(selectedNode, result);
             
-            if (i % 1000 == 0) {
+            if(PRINT_ITERATIONS && i % 10000 == 0) {
                 System.out.println("Iteration: " + i + " out of " + ITERATIONS);
             }
         }
-        ITERATIONS *= 1.1;
+        ITERATIONS *= 1.16;
         printBestMoves(rootNode);
         
         TreeNode bestChild = null;
@@ -122,16 +124,16 @@ public class MonteCarloPlayer extends BasePlayer {
     }
 
     private TreeNode treePolicy(TreeNode node) {
-        while (!isTerminal(node.board)) {
+        int depth = 0;
+        while (!isTerminal(node.board) && depth < MAX_DEPTH) {
             if (!node.untriedMoves.isEmpty()) {
                 return expand(node);
-            }
-            else if (!node.children.isEmpty()) {
+            } else if (!node.children.isEmpty()) {
                 node = bestUCTChild(node);
-            }
-            else {
+            } else {
                 break;
             }
+            depth++;
         }
         return node;
     }
