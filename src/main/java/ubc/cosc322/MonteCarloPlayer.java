@@ -270,20 +270,20 @@ public class MonteCarloPlayer extends BasePlayer {
     }
         
     private class TreeNode {
-    LocalBoard board;
-    TreeNode parent;
-    List<TreeNode> children = new ArrayList<>();
-    MoveAction action;
-    int wins = 0;
-    int visits = 0;
-    List<Map<String, Object>> untriedMoves;
+        LocalBoard board;
+        TreeNode parent;
+        List<TreeNode> children = new ArrayList<>();
+        MoveAction action;
+        int wins = 0;
+        int visits = 0;
+        List<Map<String, Object>> untriedMoves;
 
-    public TreeNode(LocalBoard board, TreeNode parent, MoveAction action) {
-        this.board = board.copy();
-        this.parent = parent;
-        this.action = action;
-        MoveActionFactory factory = new MoveActionFactory(board.getState(), board.getLocalPlayer());
-        this.untriedMoves = factory.getActions();
+        public TreeNode(LocalBoard board, TreeNode parent, MoveAction action) {
+            this.board = board.copy();
+            this.parent = parent;
+            this.action = action;
+            MoveActionFactory factory = new MoveActionFactory(board.getState(), board.getLocalPlayer());
+            this.untriedMoves = factory.getActions();
+        }
     }
-}
 }
