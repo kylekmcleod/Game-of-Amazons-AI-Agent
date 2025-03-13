@@ -14,13 +14,21 @@ import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
  * It extends the BasePlayer class and overrides the processMove method to select moves
  * based on simulated playouts.
  *
- * The bot is very weak at this current state. It only visits nodes 1 to 3 times early game.
- * It is able to beat a random player every time, but it is not able to beat a good human player.
+ * The bot is performing better than previously, but there is still improvement to be made.
+ * We have to be careful to not run out of memory. Each node holds the board state, so there is a
+ * nxn board on each node. This probably isn't optimal, but it's working for now.
+ * 
+ * PARAMETERS:
+ * - ITERATIONS: The number of iterations the MCTS algorithm will run. Higher = better moves, but slower and might run out of memory.
+ * - ITERATIONS_MULTIPLIER: Since there is many possible moves early game, we can increase the number of iterations as the game progresses.
+ * - MAX_DEPTH: The maximum depth the MCTS algorithm will go. Higher = better moves, but slower. Memory might also be an issue.
+ * - PRINT_ITERATIONS: Print the number of iterations every 10000 iterations. DO NOT enable this if we are playing in tournament.
+ * 
  *
  * TODO:
  * - Fine tune the bot so it picks better moves early game 
  * - Add parallelization to the MCTS algorithm
- * 
+ * - Possibly add a better heuristic
  */
 public class MonteCarloPlayer extends BasePlayer {
     private int ITERATIONS = 4000;
