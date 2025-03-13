@@ -26,7 +26,7 @@ private static final boolean PRINT_ITERATIONS = false;    // Toggle to print ite
 │   ├── docs/                              # Documentation
 │   │   ├── COSC 322 Progress Report.md    # Progress report notes
 │   │   ├── COSC 322 Progress Report.pdf   # Progress report PDF
-│   │   └── Amazons_Strategy.pdf           # Amazons Strategy Booklet
+│   │   └── Amazons_Strategy.pdf           # Amazons strategy Booklet
 │   │   
 │   ├── main/                              # Main source code
 │   │   ├── java/                          # Java source files
