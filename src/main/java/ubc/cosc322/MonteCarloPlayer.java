@@ -31,10 +31,10 @@ import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
  * - Possibly add a better heuristic
  */
 public class MonteCarloPlayer extends BasePlayer {
-    private int ITERATIONS = 4000;
-    private static final double ITERATIONS_MULTIPLIER = 1.14;
     private static final int MAX_DEPTH = 20;
-    private static final boolean PRINT_ITERATIONS = false;
+    private static final long maxTimeMillis = 25000; // 25 seconds
+    private static final long maxMemoryBytes = 4L * 1024 * 1024 * 1024; // 4 GB
+
 
     private Random random = new Random();
 
@@ -47,28 +47,44 @@ public class MonteCarloPlayer extends BasePlayer {
         LocalBoard rootBoard = localBoard.copy();
         int ourPlayer = localBoard.getLocalPlayer();
         System.out.println(ourPlayer);
-        
-
+    
         TreeNode rootNode = new TreeNode(rootBoard, null, null);
-        System.out.println("Starting MCTS with " + ITERATIONS + " iterations");
-        
-        for (int i = 0; i < ITERATIONS; i++) {
+        System.out.println("Starting MCTS with " + maxTimeMillis/1000 + " seconds and " + maxMemoryBytes/1024/1024 + " MB memory limit.");
+    
+        // These get the time and memory usage before starting the MCTS algorithm, can adjust mem and time limit a top of class
+        long startTime = System.nanoTime();
+        long initialMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+        long iterationCount = 0;
+
+        while (true) {
+            // Stops when memory exeeded
+            long currentMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+            if (currentMemory - initialMemory > maxMemoryBytes) {
+                System.out.println("Memory limit exceeded. Stopping MCTS.");
+                break;
+            }
+    
+            // Stops when time limit is up
+            long elapsedTime = (System.nanoTime() - startTime) / 1000000;
+            if (elapsedTime > maxTimeMillis) {
+                System.out.println("Time limit exceeded. Stopping MCTS.");
+                break;
+            }
+    
             // Step 1: Selection
             TreeNode selectedNode = treePolicy(rootNode);
-            
+    
             // Step 2: Simulation
             LocalBoard simulationBoard = selectedNode.board.copy();
             boolean simulationResult = simulatePlayout(simulationBoard, ourPlayer);
             int result = simulationResult ? 1 : 0;
-            
+    
             // Step 3: Backpropagation
             backpropagate(selectedNode, result);
-            
-            if(PRINT_ITERATIONS && i % 10000 == 0) {
-                System.out.println("Iteration: " + i + " out of " + ITERATIONS);
-            }
+
+            iterationCount++;
         }
-        ITERATIONS *= ITERATIONS_MULTIPLIER;
+        System.out.println("MCTS iterations: " + iterationCount);
         printBestMoves(rootNode);
         
         TreeNode bestChild = null;
@@ -80,23 +96,23 @@ public class MonteCarloPlayer extends BasePlayer {
                 bestChild = child;
             }
         }
-
+    
         if (bestChild == null || bestChild.action == null) {
             System.out.println("No valid move selected by MCTS!");
             return;
         }
-
+    
         MoveAction moveAction = bestChild.action;
         localBoard.updateState(moveAction);
-        
+    
         Map<String, Object> moveMsg = new HashMap<>();
         moveMsg.put(AmazonsGameMessage.QUEEN_POS_CURR, new ArrayList<>(moveAction.getQueenCurrent()));
         moveMsg.put(AmazonsGameMessage.QUEEN_POS_NEXT, new ArrayList<>(moveAction.getQueenTarget()));
         moveMsg.put(AmazonsGameMessage.ARROW_POS, new ArrayList<>(moveAction.getArrowTarget()));
-        
+    
         gamegui.updateGameState(moveMsg);
         gameClient.sendMoveMessage(moveMsg);
-        }
+    }
 
     private boolean isTerminal(LocalBoard board) {
         int currentPlayer = board.getLocalPlayer();
