@@ -243,7 +243,7 @@ public class MonteCarloPlayer extends BasePlayer {
     
         double edgePenalty = 0;
         if (x == 1 || x == 10 || y == 1 || y == 10) {
-            edgePenalty = 3;
+            edgePenalty = 2;
         }
     
         return centerPenalty + edgePenalty;
@@ -260,6 +260,7 @@ public class MonteCarloPlayer extends BasePlayer {
         double queenWeight = QUEEN_WEIGHT;
         double arrowWeight = ARROW_WEIGHT;
         
+        // As game progresses, we want to prioritize arrow position more
         if (moveCounter >= EARLY_GAME_CUTOFF) {
             queenWeight *= Math.max(0.3, 1.0 - (moveCounter - EARLY_GAME_CUTOFF) * 0.03);
             arrowWeight = 1.0 - queenWeight;
