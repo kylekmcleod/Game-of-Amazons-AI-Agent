@@ -35,7 +35,7 @@ import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
 
 public class MonteCarloPlayer extends BasePlayer {
     private static final int MAX_DEPTH = 20;
-    private static final long MAX_TIME = 10 * 1000; // 25 seconds
+    private static final long MAX_TIME = 25 * 1000; // 25 seconds
     private static final long MAX_MEMORY = 4L * 1024 * 1024 * 1024; // 4 GB
     private static final int  EARLY_GAME_CUTOFF = 10;
     private static final int  EARLY_GAME_MOVE_CHOICES = 200;
