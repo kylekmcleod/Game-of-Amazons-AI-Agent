@@ -60,6 +60,20 @@ public class MoveActionFactory {
         }
         return queenPositions;
     }
+
+    // Get all queen positions for the opposing player
+    private List<List<Integer>> getAllOpponentQueenCurrents() {
+        List<List<Integer>> opponentQueenPositions = new ArrayList<>();
+        for (int row = 1; row <= 10; row++) {
+            for (int col = 1; col <= 10; col++) {
+                if (board[row][col] != currentPlayer) { 
+                    opponentQueenPositions.add(List.of(row, col));
+                }
+            }
+        }
+        return opponentQueenPositions;
+    }
+
     
     // Get all valid moves for a queen at a given position
     private List<List<Integer>> getValidMoves(int row, int col) {
