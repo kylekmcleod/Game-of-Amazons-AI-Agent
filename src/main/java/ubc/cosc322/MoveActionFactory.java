@@ -76,7 +76,7 @@ public class MoveActionFactory {
 
     
     // Get all valid moves for a queen at a given position
-    private List<List<Integer>> getValidMoves(int row, int col) {
+    public List<List<Integer>> getValidMoves(int row, int col) {
         List<List<Integer>> moves = new ArrayList<>();
         int[][] directions = {
             {0, 1}, {0, -1}, {1, 0}, {-1, 0}, 

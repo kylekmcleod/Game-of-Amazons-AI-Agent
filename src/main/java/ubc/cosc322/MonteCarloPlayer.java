@@ -34,13 +34,19 @@ import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
  */
 
 public class MonteCarloPlayer extends BasePlayer {
+
+    // MCTS parameters:
+    // These can be adjusted to improve the bot's performance.
     private static final int MAX_DEPTH = 20;
-    private static final long MAX_TIME = 25 * 1000; // 25 seconds
-    private static final long MAX_MEMORY = 4L * 1024 * 1024 * 1024; // 4 GB
-    private static final int  EARLY_GAME_CUTOFF = 10;
-    private static final int  EARLY_GAME_MOVE_CHOICES = 200;
-    private static final double QUEEN_WEIGHT = 0.4;
-    private static final double ARROW_WEIGHT = 0.6;
+    private static final long MAX_TIME = 10 * 1000;
+    private static final long MAX_MEMORY = 4L * 1024 * 1024 * 1024;
+    private static final int  MOVE_CHOICES = 30;
+
+    // Heuristic weights:
+    // Higher decimal values mean the bot will prioritize that heuristic more.
+    private static final double QUEEN_WEIGHT = 0.3;
+    private static final double ARROW_WEIGHT = 0.3;
+    private static final double MOBILITY_WEIGHT = 0.6;
 
     private Random random = new Random();
     private static int moveCounter = 0;
@@ -180,11 +186,11 @@ public class MonteCarloPlayer extends BasePlayer {
         node.untriedMoves.sort((move1, move2) -> {
             double score1 = calculateCombinedHeuristic(move1, node.board);
             double score2 = calculateCombinedHeuristic(move2, node.board);
-            return Double.compare(score1, score2);
+            return Double.compare(score2, score1);
         });
     
-        if (node.untriedMoves.size() > EARLY_GAME_MOVE_CHOICES) {
-            node.untriedMoves = node.untriedMoves.subList(0, EARLY_GAME_MOVE_CHOICES);
+        if (node.untriedMoves.size() > MOVE_CHOICES) {
+            node.untriedMoves = node.untriedMoves.subList(0, MOVE_CHOICES);
         }
     
         Map<String, Object> moveMap = node.untriedMoves.remove(0);
@@ -205,7 +211,7 @@ public class MonteCarloPlayer extends BasePlayer {
     /*
      * According to the Amazons Strategy PDF page 2, the creator claims that the best starting positions are
      * close to {8, 3}, {8, 8}, {3, 3}, {3, 8}. This heuristic function calculates the distance from the
-     * target queen position to these optimal positions and returns a score based on that. Lower score, the better.
+     * target queen position to these optimal positions and returns a score based on that.
      */
     private double optimalPositionHeuristic(Map<String, Object> moveMap, LocalBoard board) {
         List<Integer> queenTarget = (List<Integer>) moveMap.get(AmazonsGameMessage.QUEEN_POS_NEXT);
@@ -222,13 +228,14 @@ public class MonteCarloPlayer extends BasePlayer {
             minDistance = Math.min(minDistance, distance);
         }
         
-        return minDistance;
+        return 100.0 * (1.0 - (minDistance / 7));
+
     }
     
     /*
      * This heuristic function calculates the distance from the arrow target to the center of the board.
      * Usually, arrows are more effective when they are closer to the center of the board. This function
-     * returns a score based on that. Lower score, the better.
+     * returns a score based on that.
      */
     private double arrowHeuristic(Map<String, Object> moveMap, LocalBoard board) {
         List<Integer> arrowTarget = (List<Integer>) moveMap.get(AmazonsGameMessage.ARROW_POS);
@@ -239,14 +246,41 @@ public class MonteCarloPlayer extends BasePlayer {
         int centerY = 5;
         
         double distanceToCenter = Math.abs(x - centerX) + Math.abs(y - centerY);
-        double centerPenalty = distanceToCenter;
     
         double edgePenalty = 0;
         if (x == 1 || x == 10 || y == 1 || y == 10) {
             edgePenalty = 2;
         }
     
-        return centerPenalty + edgePenalty;
+        return 100.0 * (1.0 - (distanceToCenter + edgePenalty) / 10.0);
+    }
+
+    /**
+    * This heuristic evaluates the mobility of the queen after it moves to the target position.
+    * It returns the amount of moves a queen has after it moves to the target position.
+    * This trys to keep queens in positions where they have more moves.
+    */
+    private double queenMobilityHeuristic(Map<String, Object> moveMap, LocalBoard board) {
+        List<Integer> queenTarget = (List<Integer>) moveMap.get(AmazonsGameMessage.QUEEN_POS_NEXT);
+
+        if (queenTarget == null || queenTarget.size() < 2) {
+            return 0;
+        }
+        
+        int x = queenTarget.get(0);
+        int y = queenTarget.get(1);
+        
+        int currentPlayer = board.getLocalPlayer();
+        MoveActionFactory factory = new MoveActionFactory(board.getState(), currentPlayer);
+        List<List<Integer>> validMoves = factory.getValidMoves(x, y);
+
+        double score = 0;
+
+        if (validMoves.size() > 0) {
+            score = validMoves.size() * 3;
+        }
+
+        return score;
     }
 
     /*
@@ -256,21 +290,18 @@ public class MonteCarloPlayer extends BasePlayer {
     private double calculateCombinedHeuristic(Map<String, Object> moveMap, LocalBoard board) {
         double queenScore = optimalPositionHeuristic(moveMap, board);
         double arrowScore = arrowHeuristic(moveMap, board);
-        
+        double mobilityScore = queenMobilityHeuristic(moveMap, board);
+    
         double queenWeight = QUEEN_WEIGHT;
         double arrowWeight = ARROW_WEIGHT;
-        
-        // As game progresses, we want to prioritize arrow position more
-        if (moveCounter >= EARLY_GAME_CUTOFF) {
-            queenWeight *= Math.max(0.3, 1.0 - (moveCounter - EARLY_GAME_CUTOFF) * 0.03);
-            arrowWeight = 1.0 - queenWeight;
-        }
-
-        double totalWeight = queenWeight + arrowWeight;
+        double mobilityWeight = MOBILITY_WEIGHT;
+    
+        double totalWeight = queenWeight + arrowWeight + mobilityWeight;
         queenWeight /= totalWeight;
         arrowWeight /= totalWeight;
-        
-        return queenScore * queenWeight + arrowScore * arrowWeight;
+        mobilityWeight /= totalWeight;
+    
+        return queenScore * queenWeight + arrowScore * arrowWeight + mobilityScore * mobilityWeight;
     }
     
     private boolean simulatePlayout(LocalBoard board, int ourPlayer) {
@@ -341,9 +372,10 @@ public class MonteCarloPlayer extends BasePlayer {
                 moveMap.put(AmazonsGameMessage.ARROW_POS, move.getArrowTarget());
 
                 
-                double queenHeuristicValue = optimalPositionHeuristic(moveMap, child.board) * QUEEN_WEIGHT;
-                double arrowHeuristicValue = arrowHeuristic(moveMap, child.board) * ARROW_WEIGHT;
-                double totalHeuristicValue = queenHeuristicValue + arrowHeuristicValue;
+                double queenHeuristicValue = (int)optimalPositionHeuristic(moveMap, child.board) * QUEEN_WEIGHT;
+                double arrowHeuristicValue = (int)arrowHeuristic(moveMap, child.board) * ARROW_WEIGHT;
+                double mobilityHeuristicValue = (int)queenMobilityHeuristic(moveMap, child.board) * MOBILITY_WEIGHT;
+                double totalHeuristicValue = (int)queenHeuristicValue + arrowHeuristicValue + mobilityHeuristicValue ;
 
                 System.out.print((i + 1) + ". Move:");
                 System.out.print("  Q:(" + queenXCurrent + "," + queenYCurrent + ")");
@@ -351,8 +383,9 @@ public class MonteCarloPlayer extends BasePlayer {
                 System.out.print("  A:(" + arrowXTarget + "," + arrowYTarget + ")");
                 System.out.print("  Visits: " + child.visits);
                 System.out.print("  Win rate: " + formattedWinRate);
-                System.out.print("  Queen Heuristic: " + queenHeuristicValue);
-                System.out.print("  Arrow Heuristic: " + arrowHeuristicValue);
+                System.out.print("  Q: " + queenHeuristicValue);
+                System.out.print("  A: " + arrowHeuristicValue);
+                System.out.print("  M: " + mobilityHeuristicValue);
                 System.out.print("  Total Heuristic: " + totalHeuristicValue);
                 System.out.println();
             }
