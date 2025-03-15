@@ -19,13 +19,6 @@ import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
  * nxn board on each node. This probably isn't optimal, but it's working for now.
  * 
  * PARAMETERS:
- * - MAX_DEPTH: The maximum depth the MCTS algorithm will go to.
- * - MAX_TIME: The maximum time the MCTS algorithm will run.
- * - MAX_MEMORY: The maximum memory the MCTS algorithm will use.
- * - EARLY_GAME_CUTOFF: The number of moves the bot will consider in the early game.
- * - QUEEN_WEIGHT: The weight of the queen position heuristic. Lower means the bot will prioritize queen position more.
- * - ARROW_WEIGHT: The weight of the arrow position heuristic. Lower means the bot will prioritize arrow position more.
- * 
  *
  * TODO:
  * - Fine tune the bot so it picks better moves early game 
