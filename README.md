@@ -14,13 +14,18 @@ This project uses a [Monte Carlo Search Tree](https://en.wikipedia.org/wiki/Mont
 # Monte Carlo Configuration
 The bot can be fine-tuned to run optimally on different systems. The configuration variables can be found at the top of the ```MonteCarloPlayer.java``` class and can be adjusted to balance performance and accuracy.
 ```java
+// MCTS parameters:
+// These can be adjusted to improve the bot's performance.
 private static final int MAX_DEPTH = 20;
-private static final long MAX_TIME = 25 * 1000; // 25 seconds
-private static final long MAX_MEMORY = 4L * 1024 * 1024 * 1024; // 4 GB
-private static final int  EARLY_GAME_CUTOFF = 10;
-private static final int  EARLY_GAME_MOVE_CHOICES = 200;
-private static final double QUEEN_WEIGHT = 0.4;
-private static final double ARROW_WEIGHT = 0.6;
+private static final long MAX_TIME = 10 * 1000;
+private static final long MAX_MEMORY = 4L * 1024 * 1024 * 1024;
+private static final int  MOVE_CHOICES = 30;
+
+// Heuristic weights:
+// Higher decimal values mean the bot will prioritize that heuristic more.
+private static final double QUEEN_WEIGHT = 0.3;
+private static final double ARROW_WEIGHT = 0.3;
+private static final double MOBILITY_WEIGHT = 0.6;
 ```
 # Project Structure
 ```
