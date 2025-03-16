@@ -40,6 +40,8 @@ public class MonteCarloPlayer extends BasePlayer {
     private static final double QUEEN_WEIGHT = 0.3;
     private static final double ARROW_WEIGHT = 0.3;
     private static final double MOBILITY_WEIGHT = 0.6;
+    // New territory control weight
+    private static final double TERRITORY_WEIGHT = 0.5;
 
     private Random random = new Random();
     private static int moveCounter = 0;
@@ -63,7 +65,7 @@ public class MonteCarloPlayer extends BasePlayer {
         long iterationCount = 0;
 
         while (true) {
-            // Stops when memory exeeded
+            // Stops when memory exceeded
             long currentMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
             if (currentMemory - initialMemory > MAX_MEMORY) {
                 System.out.println("Memory limit exceeded. Stopping MCTS.");
@@ -222,7 +224,6 @@ public class MonteCarloPlayer extends BasePlayer {
         }
         
         return 100.0 * (1.0 - (minDistance / 7));
-
     }
     
     /*
@@ -249,10 +250,10 @@ public class MonteCarloPlayer extends BasePlayer {
     }
 
     /**
-    * This heuristic evaluates the mobility of the queen after it moves to the target position.
-    * It returns the amount of moves a queen has after it moves to the target position.
-    * This trys to keep queens in positions where they have more moves.
-    */
+     * This heuristic evaluates the mobility of the queen after it moves to the target position.
+     * It returns the amount of moves a queen has after it moves to the target position.
+     * This tries to keep queens in positions where they have more moves.
+     */
     private double queenMobilityHeuristic(Map<String, Object> moveMap, LocalBoard board) {
         List<Integer> queenTarget = (List<Integer>) moveMap.get(AmazonsGameMessage.QUEEN_POS_NEXT);
 
@@ -268,33 +269,118 @@ public class MonteCarloPlayer extends BasePlayer {
         List<List<Integer>> validMoves = factory.getValidMoves(x, y);
 
         double score = 0;
-
-        if (validMoves.size() > 0) {
+        if (!validMoves.isEmpty()) {
             score = validMoves.size() * 3;
         }
 
         return score;
     }
-
+    
+    /**
+     * This heuristic calculates territory control by estimating the number of empty cells
+     * accessible from the queen's target position. It simulates the board after applying the move,
+     * temporarily treats the queen's new square as empty (to simulate movement), and then uses a flood fill
+     * (queen-like moves) to count reachable cells. The final score is normalized to a 0–100 scale.
+     */
+    private double territoryControlHeuristic(Map<String, Object> moveMap, LocalBoard board) {
+        // Copy the board and simulate the move.
+        LocalBoard boardCopy = board.copy();
+        List<Integer> queenTarget = (List<Integer>) moveMap.get(AmazonsGameMessage.QUEEN_POS_NEXT);
+        List<Integer> queenCurrent = (List<Integer>) moveMap.get(AmazonsGameMessage.QUEEN_POS_CURR);
+        List<Integer> arrowTarget = (List<Integer>) moveMap.get(AmazonsGameMessage.ARROW_POS);
+        MoveAction moveAction = new MoveAction(queenCurrent, queenTarget, arrowTarget);
+        boardCopy.updateState(moveAction);
+        
+        // Assume boardCopy.getState() returns a 2D int array representing the board.
+        int[][] state = boardCopy.getState();
+        int rows = state.length;
+        int cols = state[0].length;
+        int startX = queenTarget.get(0);
+        int startY = queenTarget.get(1);
+        
+        // For territory evaluation, temporarily treat the queen's square as empty.
+        int temp = state[startX][startY];
+        state[startX][startY] = 0;
+        
+        boolean[][] visited = new boolean[rows][cols];
+        visited[startX][startY] = true;
+        int territoryCount = floodFill(state, startX, startY, visited);
+        
+        // Restore the queen's position value.
+        state[startX][startY] = temp;
+        
+        // Normalize the territory score relative to the board size.
+        double normalizedScore = 100.0 * ((double) territoryCount / (rows * cols));
+        return normalizedScore;
+    }
+    
+    /**
+     * Flood fill using queen moves (in 8 directions) to count reachable empty cells.
+     */
+    private int floodFill(int[][] board, int x, int y, boolean[][] visited) {
+        int count = 0;
+        int rows = board.length;
+        int cols = board[0].length;
+        // All eight directions for queen moves.
+        int[][] directions = {
+            {-1, 0}, {1, 0}, {0, -1}, {0, 1},
+            {-1, -1}, {-1, 1}, {1, -1}, {1, 1}
+        };
+        
+        for (int[] dir : directions) {
+            int newX = x;
+            int newY = y;
+            // Move step by step in this direction.
+            while (true) {
+                newX += dir[0];
+                newY += dir[1];
+                if (newX < 0 || newX >= rows || newY < 0 || newY >= cols) {
+                    break;
+                }
+                // Stop if an obstacle is encountered.
+                if (board[newX][newY] != 0) {
+                    break;
+                }
+                if (!visited[newX][newY]) {
+                    visited[newX][newY] = true;
+                    count++;
+                    count += floodFill(board, newX, newY, visited);
+                } else {
+                    // Already visited: no need to continue further in this direction.
+                    break;
+                }
+            }
+        }
+        
+        return count;
+    }
+    
     /*
-     * This function calculates the combined heuristic score for a given move. The combined heuristic score
-     * is a weighted sum of the queen position heuristic and the arrow position heuristic.
+     * This function calculates the combined heuristic score for a given move.
+     * The combined heuristic score is a weighted sum of the queen position heuristic,
+     * arrow position heuristic, queen mobility, and territory control.
      */
     private double calculateCombinedHeuristic(Map<String, Object> moveMap, LocalBoard board) {
         double queenScore = optimalPositionHeuristic(moveMap, board);
         double arrowScore = arrowHeuristic(moveMap, board);
         double mobilityScore = queenMobilityHeuristic(moveMap, board);
+        double territoryScore = territoryControlHeuristic(moveMap, board);
     
         double queenWeight = QUEEN_WEIGHT;
         double arrowWeight = ARROW_WEIGHT;
         double mobilityWeight = MOBILITY_WEIGHT;
+        double territoryWeight = TERRITORY_WEIGHT;
     
-        double totalWeight = queenWeight + arrowWeight + mobilityWeight;
+        double totalWeight = queenWeight + arrowWeight + mobilityWeight + territoryWeight;
         queenWeight /= totalWeight;
         arrowWeight /= totalWeight;
         mobilityWeight /= totalWeight;
+        territoryWeight /= totalWeight;
     
-        return queenScore * queenWeight + arrowScore * arrowWeight + mobilityScore * mobilityWeight;
+        return queenScore * queenWeight 
+             + arrowScore * arrowWeight 
+             + mobilityScore * mobilityWeight 
+             + territoryScore * territoryWeight;
     }
     
     private boolean simulatePlayout(LocalBoard board, int ourPlayer) {
@@ -364,11 +450,11 @@ public class MonteCarloPlayer extends BasePlayer {
                 moveMap.put(AmazonsGameMessage.QUEEN_POS_NEXT, move.getQueenTarget());
                 moveMap.put(AmazonsGameMessage.ARROW_POS, move.getArrowTarget());
 
-                
-                double queenHeuristicValue = (int)optimalPositionHeuristic(moveMap, child.board) * QUEEN_WEIGHT;
-                double arrowHeuristicValue = (int)arrowHeuristic(moveMap, child.board) * ARROW_WEIGHT;
-                double mobilityHeuristicValue = (int)queenMobilityHeuristic(moveMap, child.board) * MOBILITY_WEIGHT;
-                double totalHeuristicValue = (int)queenHeuristicValue + arrowHeuristicValue + mobilityHeuristicValue ;
+                double queenHeuristicValue = optimalPositionHeuristic(moveMap, child.board) * QUEEN_WEIGHT;
+                double arrowHeuristicValue = arrowHeuristic(moveMap, child.board) * ARROW_WEIGHT;
+                double mobilityHeuristicValue = queenMobilityHeuristic(moveMap, child.board) * MOBILITY_WEIGHT;
+                double territoryHeuristicValue = territoryControlHeuristic(moveMap, child.board) * TERRITORY_WEIGHT;
+                double totalHeuristicValue = queenHeuristicValue + arrowHeuristicValue + mobilityHeuristicValue + territoryHeuristicValue;
 
                 System.out.print((i + 1) + ". Move:");
                 System.out.print("  Q:(" + queenXCurrent + "," + queenYCurrent + ")");
@@ -379,6 +465,7 @@ public class MonteCarloPlayer extends BasePlayer {
                 System.out.print("  Q: " + queenHeuristicValue);
                 System.out.print("  A: " + arrowHeuristicValue);
                 System.out.print("  M: " + mobilityHeuristicValue);
+                System.out.print("  T: " + territoryHeuristicValue);
                 System.out.print("  Total Heuristic: " + totalHeuristicValue);
                 System.out.println();
             }
