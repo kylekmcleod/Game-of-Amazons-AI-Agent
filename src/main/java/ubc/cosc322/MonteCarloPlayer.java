@@ -283,7 +283,6 @@ public class MonteCarloPlayer extends BasePlayer {
      * (queen-like moves) to count reachable cells. The final score is normalized to a 0–100 scale.
      */
     private double territoryControlHeuristic(Map<String, Object> moveMap, LocalBoard board) {
-        // Copy the board and simulate the move.
         LocalBoard boardCopy = board.copy();
         List<Integer> queenTarget = (List<Integer>) moveMap.get(AmazonsGameMessage.QUEEN_POS_NEXT);
         List<Integer> queenCurrent = (List<Integer>) moveMap.get(AmazonsGameMessage.QUEEN_POS_CURR);
@@ -291,14 +290,12 @@ public class MonteCarloPlayer extends BasePlayer {
         MoveAction moveAction = new MoveAction(queenCurrent, queenTarget, arrowTarget);
         boardCopy.updateState(moveAction);
         
-        // Assume boardCopy.getState() returns a 2D int array representing the board.
         int[][] state = boardCopy.getState();
         int rows = state.length;
         int cols = state[0].length;
         int startX = queenTarget.get(0);
         int startY = queenTarget.get(1);
         
-        // For territory evaluation, temporarily treat the queen's square as empty.
         int temp = state[startX][startY];
         state[startX][startY] = 0;
         
@@ -306,10 +303,8 @@ public class MonteCarloPlayer extends BasePlayer {
         visited[startX][startY] = true;
         int territoryCount = floodFill(state, startX, startY, visited);
         
-        // Restore the queen's position value.
         state[startX][startY] = temp;
         
-        // Normalize the territory score relative to the board size.
         double normalizedScore = 100.0 * ((double) territoryCount / (rows * cols));
         return normalizedScore;
     }
