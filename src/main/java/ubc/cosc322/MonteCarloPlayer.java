@@ -30,8 +30,8 @@ public class MonteCarloPlayer extends BasePlayer {
 
     // MCTS parameters:
     // These can be adjusted to improve the bot's performance.
-    private static final int MAX_DEPTH = 20;
-    private static final long MAX_TIME = 10 * 800;
+    private static final int MAX_DEPTH = 1;
+    private static final long MAX_TIME = 10 * 500;
     private static final long MAX_MEMORY = 4L * 1024 * 1024 * 1024;
     private static int MOVE_CHOICES = 20;
     private static int INCREASE_MOVE_CHOICES = 3;
