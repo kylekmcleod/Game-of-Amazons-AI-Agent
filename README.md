@@ -17,15 +17,15 @@ The bot can be fine-tuned to run optimally on different systems. The configurati
 // MCTS parameters:
 // These can be adjusted to improve the bot's performance.
 private static final int MAX_DEPTH = 20;
-private static final long MAX_TIME = 10 * 1000;
+private static final long MAX_TIME = 10 * 2800;
 private static final long MAX_MEMORY = 4L * 1024 * 1024 * 1024;
-private static final int  MOVE_CHOICES = 30;
+private static int MOVE_CHOICES = 20;
+private static int INCREASE_MOVE_CHOICES = 5;
 
 // Heuristic weights:
-// Higher decimal values mean the bot will prioritize that heuristic more.
-private static final double QUEEN_WEIGHT = 0.3;
-private static final double ARROW_WEIGHT = 0.3;
-private static final double MOBILITY_WEIGHT = 0.6;
+// Higher values mean the bot will prioritize that heuristic more.
+private static final double MOBILITY_WEIGHT = 0.3;
+private static final double BLOCKING_WEIGHT = 1.0;
 ```
 # Project Structure
 ```
