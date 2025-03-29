@@ -77,7 +77,6 @@ public abstract class BasePlayer extends GamePlayer {
             
                 MoveAction moveAction = new MoveAction(queenCurrent, queenTarget, arrowTarget);
                 localBoard.updateState(moveAction);
-                localBoard.printState();
                 gamegui.updateGameState(queenCurrent, queenTarget, arrowTarget);
 
                 processMove(msgDetails);

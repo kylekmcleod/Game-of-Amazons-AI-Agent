@@ -31,15 +31,15 @@ public class MonteCarloPlayer extends BasePlayer {
     // MCTS parameters:
     // These can be adjusted to improve the bot's performance.
     private static final int MAX_DEPTH = 20;
-    private static final long MAX_TIME = 10 * 1000;
+    private static final long MAX_TIME = 10 * 2800;
     private static final long MAX_MEMORY = 4L * 1024 * 1024 * 1024;
-    private static final int  MOVE_CHOICES = 30;
+    private static int MOVE_CHOICES = 20;
+    private static int INCREASE_MOVE_CHOICES = 5;
 
     // Heuristic weights:
-    // Higher decimal values mean the bot will prioritize that heuristic more.
-    private static final double QUEEN_WEIGHT = 0.3;
-    private static final double ARROW_WEIGHT = 0.3;
-    private static final double MOBILITY_WEIGHT = 0.6;
+    // Higher values mean the bot will prioritize that heuristic more.
+    private static final double MOBILITY_WEIGHT = 0.3;
+    private static final double BLOCKING_WEIGHT = 1.0;
 
     private Random random = new Random();
     private static int moveCounter = 0;
@@ -119,6 +119,8 @@ public class MonteCarloPlayer extends BasePlayer {
         gamegui.updateGameState(moveMsg);
         gameClient.sendMoveMessage(moveMsg);
         moveCounter++;
+        MOVE_CHOICES += INCREASE_MOVE_CHOICES;
+
     }
 
     private boolean isTerminal(LocalBoard board) {
@@ -130,7 +132,7 @@ public class MonteCarloPlayer extends BasePlayer {
     private TreeNode bestUCTChild(TreeNode node) {
         TreeNode bestChild = null;
         double bestUCT = Double.NEGATIVE_INFINITY;
-        double C = Math.sqrt(2);
+        double C = 0.9;
         boolean isOurPlayerTurn = (node.board.getLocalPlayer() == localBoard.getLocalPlayer());
         
         for (TreeNode child : node.children) {
@@ -200,53 +202,6 @@ public class MonteCarloPlayer extends BasePlayer {
     
         return childNode;
     }
-    
-    /*
-     * According to the Amazons Strategy PDF page 2, the creator claims that the best starting positions are
-     * close to {8, 3}, {8, 8}, {3, 3}, {3, 8}. This heuristic function calculates the distance from the
-     * target queen position to these optimal positions and returns a score based on that.
-     */
-    private double optimalPositionHeuristic(Map<String, Object> moveMap, LocalBoard board) {
-        List<Integer> queenTarget = (List<Integer>) moveMap.get(AmazonsGameMessage.QUEEN_POS_NEXT);
-        int x = queenTarget.get(0);
-        int y = queenTarget.get(1);
-        
-        int[][] optimalPositions = {
-            {8, 3}, {8, 8}, {3, 3}, {3, 8}
-        };
-        
-        double minDistance = Double.MAX_VALUE;
-        for (int[] position : optimalPositions) {
-            double distance = Math.abs(x - position[0]) + Math.abs(y - position[1]);
-            minDistance = Math.min(minDistance, distance);
-        }
-        
-        return 100.0 * (1.0 - (minDistance / 7));
-
-    }
-    
-    /*
-     * This heuristic function calculates the distance from the arrow target to the center of the board.
-     * Usually, arrows are more effective when they are closer to the center of the board. This function
-     * returns a score based on that.
-     */
-    private double arrowHeuristic(Map<String, Object> moveMap, LocalBoard board) {
-        List<Integer> arrowTarget = (List<Integer>) moveMap.get(AmazonsGameMessage.ARROW_POS);
-        int x = arrowTarget.get(0);
-        int y = arrowTarget.get(1);
-    
-        int centerX = 5;
-        int centerY = 5;
-        
-        double distanceToCenter = Math.abs(x - centerX) + Math.abs(y - centerY);
-    
-        double edgePenalty = 0;
-        if (x == 1 || x == 10 || y == 1 || y == 10) {
-            edgePenalty = 2;
-        }
-    
-        return 100.0 * (1.0 - (distanceToCenter + edgePenalty) / 10.0);
-    }
 
     /**
     * This heuristic evaluates the mobility of the queen after it moves to the target position.
@@ -277,24 +232,65 @@ public class MonteCarloPlayer extends BasePlayer {
     }
 
     /*
-     * This function calculates the combined heuristic score for a given move. The combined heuristic score
-     * is a weighted sum of the queen position heuristic and the arrow position heuristic.
+    * This heuristic evaluates how effectively a move blocks the opponent's queens.
+    * It calculates the reduction in opponent's mobility after our move compared to before our move.
+    * Higher values indicate more effective blocking.
+    */
+    private double opponentBlockingHeuristic(Map<String, Object> moveMap, LocalBoard board) {
+        int opponentPlayer = (board.getLocalPlayer() == LocalBoard.QUEEN_PLAYER_1) ? LocalBoard.QUEEN_PLAYER_2 : LocalBoard.QUEEN_PLAYER_1;
+        
+        // This part gets all the queen moves BEFORE the move
+        MoveActionFactory factory = new MoveActionFactory(board.getState(), opponentPlayer);
+        List<List<Integer>> opponentQueens = factory.getAllQueenCurrents();
+    
+        Map<List<Integer>, List<List<Integer>>> queenToMovesBeforeMap = new HashMap<>();
+        int mobilityBefore = 0;
+        
+        for (List<Integer> queen : opponentQueens) {
+            int x = queen.get(0);
+            int y = queen.get(1);
+            List<List<Integer>> validMoves = factory.getValidMoves(x, y);
+            queenToMovesBeforeMap.put(queen, validMoves);
+            mobilityBefore += validMoves.size();
+        }
+    
+        List<Integer> queenCurrent = (List<Integer>) moveMap.get(AmazonsGameMessage.QUEEN_POS_CURR);
+        List<Integer> queenTarget = (List<Integer>) moveMap.get(AmazonsGameMessage.QUEEN_POS_NEXT);
+        List<Integer> arrowTarget = (List<Integer>) moveMap.get(AmazonsGameMessage.ARROW_POS);
+    
+        LocalBoard simulationBoard = board.copy();
+        MoveAction moveAction = new MoveAction(queenCurrent, queenTarget, arrowTarget);
+        simulationBoard.updateState(moveAction);
+        
+        // This part gets all the queen moves AFTER the move
+        factory = new MoveActionFactory(simulationBoard.getState(), opponentPlayer);
+        
+        int mobilityAfter = 0;
+        int completelyBlockedQueens = 0;
+        
+        for (List<Integer> queen : opponentQueens) {
+            int x = queen.get(0);
+            int y = queen.get(1);
+            List<List<Integer>> validMoves = factory.getValidMoves(x, y);
+            mobilityAfter += validMoves.size();
+            
+            if (validMoves.isEmpty()) {
+                completelyBlockedQueens++;
+            }
+        }
+        int blockingEffect = mobilityBefore - mobilityAfter;
+        return (blockingEffect * 2) + (completelyBlockedQueens * 15);
+    }
+    
+
+    /*
+     * This function calculates the combined heuristic score for a given move.
      */
     private double calculateCombinedHeuristic(Map<String, Object> moveMap, LocalBoard board) {
-        double queenScore = optimalPositionHeuristic(moveMap, board);
-        double arrowScore = arrowHeuristic(moveMap, board);
         double mobilityScore = queenMobilityHeuristic(moveMap, board);
-    
-        double queenWeight = QUEEN_WEIGHT;
-        double arrowWeight = ARROW_WEIGHT;
-        double mobilityWeight = MOBILITY_WEIGHT;
-    
-        double totalWeight = queenWeight + arrowWeight + mobilityWeight;
-        queenWeight /= totalWeight;
-        arrowWeight /= totalWeight;
-        mobilityWeight /= totalWeight;
-    
-        return queenScore * queenWeight + arrowScore * arrowWeight + mobilityScore * mobilityWeight;
+        double blockingScore = opponentBlockingHeuristic(moveMap, board);
+        
+        return blockingScore * BLOCKING_WEIGHT + mobilityScore * MOBILITY_WEIGHT;
     }
     
     private boolean simulatePlayout(LocalBoard board, int ourPlayer) {
@@ -361,14 +357,13 @@ public class MonteCarloPlayer extends BasePlayer {
                 String formattedWinRate = String.format("%.2f%%", winRate);
 
                 Map<String, Object> moveMap = new HashMap<>();
+                moveMap.put(AmazonsGameMessage.QUEEN_POS_CURR, move.getQueenCurrent());
                 moveMap.put(AmazonsGameMessage.QUEEN_POS_NEXT, move.getQueenTarget());
                 moveMap.put(AmazonsGameMessage.ARROW_POS, move.getArrowTarget());
 
-                
-                double queenHeuristicValue = (int)optimalPositionHeuristic(moveMap, child.board) * QUEEN_WEIGHT;
-                double arrowHeuristicValue = (int)arrowHeuristic(moveMap, child.board) * ARROW_WEIGHT;
-                double mobilityHeuristicValue = (int)queenMobilityHeuristic(moveMap, child.board) * MOBILITY_WEIGHT;
-                double totalHeuristicValue = (int)queenHeuristicValue + arrowHeuristicValue + mobilityHeuristicValue ;
+                double mobilityHeuristicValue = Math.round(queenMobilityHeuristic(moveMap, child.board) * MOBILITY_WEIGHT * 100.0) / 100.0;
+                double blockingHeuristicValue = -Math.round(opponentBlockingHeuristic(moveMap, child.board) * BLOCKING_WEIGHT * 100.0) / 100.0;
+                double totalHeuristicValue = (int)blockingHeuristicValue + mobilityHeuristicValue ;
 
                 System.out.print((i + 1) + ". Move:");
                 System.out.print("  Q:(" + queenXCurrent + "," + queenYCurrent + ")");
@@ -376,13 +371,14 @@ public class MonteCarloPlayer extends BasePlayer {
                 System.out.print("  A:(" + arrowXTarget + "," + arrowYTarget + ")");
                 System.out.print("  Visits: " + child.visits);
                 System.out.print("  Win rate: " + formattedWinRate);
-                System.out.print("  Q: " + queenHeuristicValue);
-                System.out.print("  A: " + arrowHeuristicValue);
                 System.out.print("  M: " + mobilityHeuristicValue);
+                System.out.print("  B: " + blockingHeuristicValue);
                 System.out.print("  Total Heuristic: " + totalHeuristicValue);
                 System.out.println();
             }
+
             System.out.println("Total Moves Considered: " + rootNode.children.size());
+            System.out.println("Move number: " + moveCounter);
         }    
     }
         

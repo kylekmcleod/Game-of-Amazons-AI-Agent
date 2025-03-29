@@ -49,7 +49,7 @@ public class MoveActionFactory {
     }
 
     // Get all queen positions for the current player
-    private List<List<Integer>> getAllQueenCurrents() {
+    public List<List<Integer>> getAllQueenCurrents() {
         List<List<Integer>> queenPositions = new ArrayList<>();
         for (int row = 1; row <= 10; row++) {
             for (int col = 1; col <= 10; col++) {
@@ -62,7 +62,7 @@ public class MoveActionFactory {
     }
 
     // Get all queen positions for the opposing player
-    private List<List<Integer>> getAllOpponentQueenCurrents() {
+    public List<List<Integer>> getAllOpponentQueenCurrents() {
         List<List<Integer>> opponentQueenPositions = new ArrayList<>();
         for (int row = 1; row <= 10; row++) {
             for (int col = 1; col <= 10; col++) {
