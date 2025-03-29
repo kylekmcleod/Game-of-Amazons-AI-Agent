@@ -31,10 +31,10 @@ public class MonteCarloPlayer extends BasePlayer {
     // MCTS parameters:
     // These can be adjusted to improve the bot's performance.
     private static final int MAX_DEPTH = 20;
-    private static final long MAX_TIME = 10 * 500;
+    private static final long MAX_TIME = 10 * 2800;
     private static final long MAX_MEMORY = 4L * 1024 * 1024 * 1024;
     private static int MOVE_CHOICES = 20;
-    private static int INCREASE_MOVE_CHOICES = 2;
+    private static int INCREASE_MOVE_CHOICES = 5;
 
     // Heuristic weights:
     // Higher values mean the bot will prioritize that heuristic more.
@@ -278,7 +278,6 @@ public class MonteCarloPlayer extends BasePlayer {
                 completelyBlockedQueens++;
             }
         }
-        
         int blockingEffect = mobilityBefore - mobilityAfter;
         return (blockingEffect * 2) + (completelyBlockedQueens * 15);
     }
@@ -358,11 +357,12 @@ public class MonteCarloPlayer extends BasePlayer {
                 String formattedWinRate = String.format("%.2f%%", winRate);
 
                 Map<String, Object> moveMap = new HashMap<>();
+                moveMap.put(AmazonsGameMessage.QUEEN_POS_CURR, move.getQueenCurrent());
                 moveMap.put(AmazonsGameMessage.QUEEN_POS_NEXT, move.getQueenTarget());
                 moveMap.put(AmazonsGameMessage.ARROW_POS, move.getArrowTarget());
 
-                double mobilityHeuristicValue = (int)queenMobilityHeuristic(moveMap, child.board) * MOBILITY_WEIGHT;
-                double blockingHeuristicValue = (int)queenMobilityHeuristic(moveMap, child.board) * BLOCKING_WEIGHT;
+                double mobilityHeuristicValue = Math.round(queenMobilityHeuristic(moveMap, child.board) * MOBILITY_WEIGHT * 100.0) / 100.0;
+                double blockingHeuristicValue = -Math.round(opponentBlockingHeuristic(moveMap, child.board) * BLOCKING_WEIGHT * 100.0) / 100.0;
                 double totalHeuristicValue = (int)blockingHeuristicValue + mobilityHeuristicValue ;
 
                 System.out.print((i + 1) + ". Move:");
@@ -376,6 +376,7 @@ public class MonteCarloPlayer extends BasePlayer {
                 System.out.print("  Total Heuristic: " + totalHeuristicValue);
                 System.out.println();
             }
+
             System.out.println("Total Moves Considered: " + rootNode.children.size());
             System.out.println("Move number: " + moveCounter);
         }    
