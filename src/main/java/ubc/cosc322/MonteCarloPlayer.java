@@ -276,6 +276,70 @@ public class MonteCarloPlayer extends BasePlayer {
         return score;
     }
 
+    /**
+ * This heuristic evaluates how effectively a move blocks the opponent's queens.
+ * It calculates the reduction in opponent's mobility after our move compared to before our move.
+ * Higher values indicate more effective blocking.
+ */
+private double opponentBlockingHeuristic(Map<String, Object> moveMap, LocalBoard board) {
+    // Create a copy of the board for simulation
+    LocalBoard simulationBoard = board.copy();
+    int opponentPlayer = (simulationBoard.getLocalPlayer() == LocalBoard.QUEEN_PLAYER_1) ? 
+                          LocalBoard.QUEEN_PLAYER_2 : LocalBoard.QUEEN_PLAYER_1;
+    
+    // Count opponent's mobility before our move
+    MoveActionFactory factoryBefore = new MoveActionFactory(simulationBoard.getState(), opponentPlayer);
+    List<List<Integer>> opponentQueens = factoryBefore.getAllQueenCurrents(); // Get opponent queens
+    int mobilityBefore = 0;
+    
+    for (List<Integer> queen : opponentQueens) {
+        int x = queen.get(0);
+        int y = queen.get(1);
+        List<List<Integer>> validMoves = factoryBefore.getValidMoves(x, y);
+        mobilityBefore += validMoves.size();
+    }
+    
+    // Apply our move to the simulation board
+    List<Integer> queenCurrent = (List<Integer>) moveMap.get(AmazonsGameMessage.QUEEN_POS_CURR);
+    List<Integer> queenTarget = (List<Integer>) moveMap.get(AmazonsGameMessage.QUEEN_POS_NEXT);
+    List<Integer> arrowTarget = (List<Integer>) moveMap.get(AmazonsGameMessage.ARROW_POS);
+    MoveAction moveAction = new MoveAction(queenCurrent, queenTarget, arrowTarget);
+    simulationBoard.updateState(moveAction);
+    
+    // Switch the board to opponent's perspective
+    simulationBoard.setLocalPlayer(opponentPlayer);
+    
+    // Count opponent's mobility after our move
+    MoveActionFactory factoryAfter = new MoveActionFactory(simulationBoard.getState(), opponentPlayer);
+    int mobilityAfter = 0;
+    
+    // Re-use opponent queens list but check moves on updated board
+    for (List<Integer> queen : opponentQueens) {
+        int x = queen.get(0);
+        int y = queen.get(1);
+        List<List<Integer>> validMoves = factoryAfter.getValidMoves(x, y);
+        mobilityAfter += validMoves.size();
+    }
+    
+    // Calculate the reduction in mobility (blocking effect)
+    int blockingEffect = mobilityBefore - mobilityAfter;
+    
+    // Add bonus for completely blocked queens
+    int completelyBlockedQueens = 0;
+    for (List<Integer> queen : opponentQueens) {
+        int x = queen.get(0);
+        int y = queen.get(1);
+        List<List<Integer>> validMoves = factoryAfter.getValidMoves(x, y);
+        if (validMoves.isEmpty()) {
+            completelyBlockedQueens++;
+        }
+    }
+    
+    // Scale the result to be comparable with other heuristics (0-100)
+    return (blockingEffect * 2) + (completelyBlockedQueens * 15);
+}
+    
+
     /*
      * This function calculates the combined heuristic score for a given move. The combined heuristic score
      * is a weighted sum of the queen position heuristic and the arrow position heuristic.
@@ -284,6 +348,7 @@ public class MonteCarloPlayer extends BasePlayer {
         double queenScore = optimalPositionHeuristic(moveMap, board);
         double arrowScore = arrowHeuristic(moveMap, board);
         double mobilityScore = queenMobilityHeuristic(moveMap, board);
+        double blockingScore = opponentBlockingHeuristic(moveMap, board);
     
         double queenWeight = QUEEN_WEIGHT;
         double arrowWeight = ARROW_WEIGHT;
@@ -294,7 +359,7 @@ public class MonteCarloPlayer extends BasePlayer {
         arrowWeight /= totalWeight;
         mobilityWeight /= totalWeight;
     
-        return queenScore * queenWeight + arrowScore * arrowWeight + mobilityScore * mobilityWeight;
+        return blockingScore;
     }
     
     private boolean simulatePlayout(LocalBoard board, int ourPlayer) {
