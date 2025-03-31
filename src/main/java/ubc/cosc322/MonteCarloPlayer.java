@@ -12,7 +12,7 @@ import java.util.Random;
 import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
 
 /**
- * MonteCarloPlayer.java
+ * MC.java
  * 
  * A Monte Carlo Tree Search (MCTS) based player for the Game of Amazons.
  * This player uses a combination of heuristics:
@@ -27,15 +27,20 @@ public class MonteCarloPlayer extends BasePlayer {
 
     // MCTS parameters.
     private static final int MAX_DEPTH = 1;
-    private static final long MAX_TIME = 10 * 100; // in milliseconds
+    private static final long MAX_TIME = 10 * 500; // in milliseconds
     private static final long MAX_MEMORY = 4L * 1024 * 1024 * 1024;
     private static int MOVE_CHOICES = 20;
     private static int INCREASE_MOVE_CHOICES = 3;
 
     // Heuristic weights.
-    private static final double MOBILITY_WEIGHT = 0.3;
-    private static final double BLOCKING_WEIGHT = 1.0;
-    private static final double TERRITORY_WEIGHT = 0.7;
+    private static final double MOBILITY_WEIGHT = 0.7;
+    private static final double BLOCKING_WEIGHT = 1.1;
+    private static final double TERRITORY_WEIGHT = 0.5;
+
+    // Board size and directional vectors (static to avoid repeated allocation)
+    private static final int BOARD_SIZE = 10;
+    private static final int[] DX = {-1, -1, -1, 0, 0, 1, 1, 1};
+    private static final int[] DY = {-1,  0,  1, -1, 1, -1, 0, 1};
 
     private Random random = new Random();
     private static int moveCounter = 0;
@@ -251,13 +256,12 @@ public class MonteCarloPlayer extends BasePlayer {
      * The board is assumed to be 10x10 (1-indexed).
      */
     private int floodFillTerritory(LocalBoard board, int player) {
-        int boardSize = 10;
-        boolean[][] visited = new boolean[boardSize + 1][boardSize + 1];
+        boolean[][] visited = new boolean[BOARD_SIZE + 1][BOARD_SIZE + 1];
         Queue<Point> queue = new LinkedList<>();
     
         // Add all queen positions for the given player.
-        for (int row = 1; row <= boardSize; row++) {
-            for (int col = 1; col <= boardSize; col++) {
+        for (int row = 1; row <= BOARD_SIZE; row++) {
+            for (int col = 1; col <= BOARD_SIZE; col++) {
                 if (board.getPositionValue(Arrays.asList(row, col)) == player) {
                     Point p = new Point(row, col);
                     if (!visited[row][col]) {
@@ -269,23 +273,20 @@ public class MonteCarloPlayer extends BasePlayer {
         }
     
         int territoryCount = 0;
-        int[] dx = {-1, -1, -1, 0, 0, 1, 1, 1};
-        int[] dy = {-1,  0,  1, -1, 1, -1, 0, 1};
-    
         while (!queue.isEmpty()) {
             Point current = queue.poll();
-            for (int i = 0; i < 8; i++) {
-                int nx = current.x + dx[i];
-                int ny = current.y + dy[i];
-                while (nx >= 1 && nx <= boardSize && ny >= 1 && ny <= boardSize &&
+            for (int i = 0; i < DX.length; i++) {
+                int nx = current.x + DX[i];
+                int ny = current.y + DY[i];
+                while (nx >= 1 && nx <= BOARD_SIZE && ny >= 1 && ny <= BOARD_SIZE &&
                         board.getPositionValue(Arrays.asList(nx, ny)) == LocalBoard.EMPTY) {
                     if (!visited[nx][ny]) {
                         visited[nx][ny] = true;
                         territoryCount++;
                         queue.add(new Point(nx, ny));
                     }
-                    nx += dx[i];
-                    ny += dy[i];
+                    nx += DX[i];
+                    ny += DY[i];
                 }
             }
         }
@@ -313,22 +314,57 @@ public class MonteCarloPlayer extends BasePlayer {
     
         return ourTerritory - opponentTerritory;
     }
-    
+
     /**
-     * Combined heuristic: sums up mobility, opponent blocking, and territory control.
-     * For the first 4 moves, an additional centralization heuristic is added.
+     * Trap detection heuristic that examines the immediate mobility of queens.
+     * Applies a heavy penalty if one of our queens is nearly trapped and a bonus
+     * if an opponent's queen is nearly trapped.
      */
-    private double calculateCombinedHeuristic(Map<String, Object> moveMap, LocalBoard board) {
-        double mobilityScore = queenMobilityHeuristic(moveMap, board);
-        double blockingScore = opponentBlockingHeuristic(moveMap, board);
-        double territoryScore = territoryControlHeuristic(moveMap, board);
-        double combined = (blockingScore * BLOCKING_WEIGHT) +
-                          (mobilityScore * MOBILITY_WEIGHT) +
-                          (territoryScore * TERRITORY_WEIGHT);
-        if (moveCounter < 4) {
-            combined += centralizationHeuristic(moveMap, board);
+    private double trapHeuristic(LocalBoard board) {
+        double score = 0;
+        int threshold = 3; // if a queen has fewer than 3 moves, consider it nearly trapped
+        
+        // Use MoveActionFactory to get our queen positions instead of iterating over every cell.
+        MoveActionFactory ourFactory = new MoveActionFactory(board.getState(), board.getLocalPlayer());
+        List<List<Integer>> ourQueens = ourFactory.getAllQueenCurrents();
+        for (List<Integer> queen : ourQueens) {
+            int x = queen.get(0);
+            int y = queen.get(1);
+            int moves = countQueenMoves(board, x, y);
+            if (moves < threshold) {
+                score -= 50;
+            }
         }
-        return combined;
+        MoveActionFactory oppFactory = new MoveActionFactory(board.getState(), board.getOpponent());
+        List<List<Integer>> oppQueens = oppFactory.getAllQueenCurrents();
+        for (List<Integer> queen : oppQueens) {
+            int x = queen.get(0);
+            int y = queen.get(1);
+            int moves = countQueenMoves(board, x, y);
+            if (moves < threshold) {
+                score += 50;
+            }
+        }
+        return score;
+    }
+
+    /**
+     * Counts available moves for a queen at (row, col).
+     * This is a simplified version, similar to your MoveActionFactory logic.
+     */
+    private int countQueenMoves(LocalBoard board, int row, int col) {
+        int count = 0;
+        for (int i = 0; i < DX.length; i++) {
+            int nx = row + DX[i];
+            int ny = col + DY[i];
+            while (nx >= 1 && nx <= BOARD_SIZE && ny >= 1 && ny <= BOARD_SIZE &&
+                   board.getPositionValue(Arrays.asList(nx, ny)) == LocalBoard.EMPTY) {
+                count++;
+                nx += DX[i];
+                ny += DY[i];
+            }
+        }
+        return count;
     }
     
     /**
@@ -341,7 +377,6 @@ public class MonteCarloPlayer extends BasePlayer {
         if (queenTarget == null || queenTarget.size() < 2) {
             return 0;
         }
-        // Calculate distance from board center (using 5.5,5.5 for a 10x10 board)
         double targetX = queenTarget.get(0);
         double targetY = queenTarget.get(1);
         double centerX = 5.5;
@@ -349,12 +384,10 @@ public class MonteCarloPlayer extends BasePlayer {
         double dx = targetX - centerX;
         double dy = targetY - centerY;
         double distanceFromCenter = Math.sqrt(dx * dx + dy * dy);
-        // Approximate maximum distance from center (from a corner)
         double maxDistance = Math.sqrt(Math.pow(5.5 - 1, 2) + Math.pow(5.5 - 1, 2));
-        // The bonus is higher when the queen is closer to the center.
         double centralBonus = 2 * (maxDistance - distanceFromCenter);
 
-        // Spread: simulate the move and check distances between the moved queen and other friendly queens.
+        // Simulate the move to check the spread of friendly queens.
         LocalBoard simulatedBoard = board.copy();
         List<Integer> queenCurrent = (List<Integer>) moveMap.get(AmazonsGameMessage.QUEEN_POS_CURR);
         List<Integer> arrowTarget = (List<Integer>) moveMap.get(AmazonsGameMessage.ARROW_POS);
@@ -362,10 +395,9 @@ public class MonteCarloPlayer extends BasePlayer {
         simulatedBoard.updateState(moveAction);
         int ourPlayer = board.getLocalPlayer();
         double minDistance = Double.MAX_VALUE;
-        for (int row = 1; row <= 10; row++) {
-            for (int col = 1; col <= 10; col++) {
+        for (int row = 1; row <= BOARD_SIZE; row++) {
+            for (int col = 1; col <= BOARD_SIZE; col++) {
                 if (simulatedBoard.getPositionValue(Arrays.asList(row, col)) == ourPlayer) {
-                    // Skip the queen that just moved.
                     if (row == targetX && col == targetY) continue;
                     double d = Math.sqrt(Math.pow(targetX - row, 2) + Math.pow(targetY - col, 2));
                     if (d < minDistance) {
@@ -374,13 +406,33 @@ public class MonteCarloPlayer extends BasePlayer {
                 }
             }
         }
-        // Penalize moves that bring queens too close (desired minimum separation is set to 3).
         double spreadPenalty = 0;
         double desiredMinDistance = 3.0;
         if (minDistance < desiredMinDistance) {
             spreadPenalty = 2 * (desiredMinDistance - minDistance);
         }
         return centralBonus - spreadPenalty;
+    }
+    
+    /**
+     * Combined heuristic: sums up mobility, opponent blocking, territory control,
+     * trap detection and (for early moves) centralization.
+     */
+    private double calculateCombinedHeuristic(Map<String, Object> moveMap, LocalBoard board) {
+        double mobilityScore = queenMobilityHeuristic(moveMap, board);
+        double blockingScore = opponentBlockingHeuristic(moveMap, board);
+        double territoryScore = territoryControlHeuristic(moveMap, board);
+        double combined = (blockingScore * BLOCKING_WEIGHT) +
+                          (mobilityScore * MOBILITY_WEIGHT) +
+                          (territoryScore * TERRITORY_WEIGHT);
+        
+        combined += trapHeuristic(board);
+        
+        if (moveCounter < 4) {
+            combined += centralizationHeuristic(moveMap, board);
+        }
+        
+        return combined;
     }
     
     private boolean simulatePlayout(LocalBoard board, int ourPlayer) {
