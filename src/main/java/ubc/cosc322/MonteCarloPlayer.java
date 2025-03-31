@@ -9,6 +9,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
 
 /**
@@ -40,50 +45,61 @@ public class MonteCarloPlayer extends BasePlayer {
     private Random random = new Random();
     private static int moveCounter = 0;
 
+    private static final int NUM_THREADS = Runtime.getRuntime().availableProcessors();
+    private final AtomicLong iterationCount = new AtomicLong(0);
+
     public MonteCarloPlayer(String userName, String passwd) {
         super(userName, passwd);
     }
     
     @Override
     protected void processMove(Map<String, Object> msgDetails) {
+        moveCounter++;
         LocalBoard rootBoard = localBoard.copy();
         int ourPlayer = localBoard.getLocalPlayer();
         System.out.println("Our Player: " + ourPlayer);
     
         TreeNode rootNode = new TreeNode(rootBoard, null, null);
-        System.out.println("Starting MCTS with " + MAX_TIME/1000 + " seconds and " + MAX_MEMORY/1024/1024 + " MB memory limit.");
+        System.out.println("Starting MCTS with " + MAX_TIME/1000 + " seconds and " + NUM_THREADS + " threads.");
     
-        long startTime = System.nanoTime();
-        long initialMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
-        long iterationCount = 0;
+        // Create thread pool. This allows multiple threads to run.
+        // Currently increases our iterations by around 45%
+        ExecutorService executor = Executors.newFixedThreadPool(NUM_THREADS);
+        long startTime = System.currentTimeMillis();
+        iterationCount.set(0);
     
-        while (true) {
-            long currentMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
-            if (currentMemory - initialMemory > MAX_MEMORY) {
-                System.out.println("Memory limit exceeded. Stopping MCTS.");
-                break;
-            }
-            long elapsedTime = (System.nanoTime() - startTime) / 1000000;
-            if (elapsedTime > MAX_TIME) {
-                System.out.println("Time limit exceeded. Stopping MCTS.");
-                break;
-            }
-    
-            // Step 1: Selection.
-            TreeNode selectedNode = treePolicy(rootNode);
-            // Step 2: Simulation.
-            LocalBoard simulationBoard = selectedNode.board.copy();
-            boolean simulationResult = simulatePlayout(simulationBoard, ourPlayer);
-            int result = simulationResult ? 1 : 0;
-            // Step 3: Backpropagation.
-            backpropagate(selectedNode, result);
-    
-            iterationCount++;
+        for (int i = 0; i < NUM_THREADS; i++) {
+            executor.submit(() -> {
+                long endTime = startTime + MAX_TIME;
+                while (System.currentTimeMillis() < endTime) {
+                    // Step 1: Selection
+                    TreeNode selectedNode;
+                    synchronized (rootNode) {
+                        selectedNode = treePolicy(rootNode);
+                    }
+                    
+                    // Step 2: Simulation
+                    LocalBoard simulationBoard = selectedNode.board.copy();
+                    boolean simulationResult = simulatePlayout(simulationBoard, ourPlayer);
+                    int result = simulationResult ? 1 : 0;
+                    
+                    // Step 3: Backpropagation
+                    backpropagate(selectedNode, result);
+                    iterationCount.incrementAndGet();
+                }
+            });
         }
-        System.out.println("MCTS iterations: " + iterationCount);
+    
+        executor.shutdown();
+        try {
+            executor.awaitTermination(MAX_TIME + 1000, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            System.err.println("Thread execution interrupted: " + e.getMessage());
+        }
+    
+        System.out.println("MCTS iterations: " + iterationCount.get());
         printBestMoves(rootNode);
     
-        // Choose the best child.
         TreeNode bestChild = null;
         double bestScore = -1;
         for (TreeNode child : rootNode.children) {
@@ -109,9 +125,8 @@ public class MonteCarloPlayer extends BasePlayer {
     
         gamegui.updateGameState(moveMsg);
         gameClient.sendMoveMessage(moveMsg);
-        moveCounter++;
         MOVE_CHOICES += INCREASE_MOVE_CHOICES;
-
+    
         if (moveCounter % INCREASE_MAX_DEPTH_AFTER == 0) {
             MAX_DEPTH++;
         }        
