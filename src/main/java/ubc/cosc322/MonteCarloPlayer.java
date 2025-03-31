@@ -12,7 +12,7 @@ import java.util.Random;
 import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
 
 /**
- * MC.java
+ * MonteCarloPlayer.java
  * 
  * A Monte Carlo Tree Search (MCTS) based player for the Game of Amazons.
  * This player uses a combination of heuristics:
@@ -26,11 +26,12 @@ import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
 public class MonteCarloPlayer extends BasePlayer {
 
     // MCTS parameters.
-    private static final int MAX_DEPTH = 1;
-    private static final long MAX_TIME = 10 * 500; // in milliseconds
-    private static final long MAX_MEMORY = 4L * 1024 * 1024 * 1024;
-    private static int MOVE_CHOICES = 20;
+    private static int MAX_DEPTH = 1;
+    private static final long MAX_TIME = 10 * 2800; // in milliseconds
+    private static final long MAX_MEMORY = 7L * 1024 * 1024 * 1024;
+    private static int MOVE_CHOICES = 15;
     private static int INCREASE_MOVE_CHOICES = 3;
+    private static int INCREASE_MAX_DEPTH_AFTER = 20;
 
     // Heuristic weights.
     private static final double MOBILITY_WEIGHT = 0.7;
@@ -56,7 +57,8 @@ public class MonteCarloPlayer extends BasePlayer {
         System.out.println("Our Player: " + ourPlayer);
     
         TreeNode rootNode = new TreeNode(rootBoard, null, null);
-        System.out.println("Starting MCTS with " + MAX_TIME/1000 + " seconds and " + MAX_MEMORY/1024/1024 + " MB memory limit.");
+        System.out.println("Starting MCTS with " + MAX_TIME/1000 + " seconds and " +
+                           MAX_MEMORY/1024/1024 + " MB memory limit.");
     
         long startTime = System.nanoTime();
         long initialMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
@@ -116,6 +118,11 @@ public class MonteCarloPlayer extends BasePlayer {
         gameClient.sendMoveMessage(moveMsg);
         moveCounter++;
         MOVE_CHOICES += INCREASE_MOVE_CHOICES;
+        
+        // Increase search depth every INCREASE_MAX_DEPTH_AFTER moves.
+        if (moveCounter % INCREASE_MAX_DEPTH_AFTER == 0) {
+            MAX_DEPTH++;
+        }        
     }
     
     private boolean isTerminal(LocalBoard board) {
@@ -510,6 +517,7 @@ public class MonteCarloPlayer extends BasePlayer {
             }
             System.out.println("Total Moves Considered: " + rootNode.children.size());
             System.out.println("Move number: " + moveCounter);
+            System.out.println("Max Depth: " + MAX_DEPTH);
         }    
     }
     
