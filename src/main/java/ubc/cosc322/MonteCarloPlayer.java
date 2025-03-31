@@ -25,11 +25,12 @@ import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
 public class MonteCarloPlayer extends BasePlayer {
 
     // MCTS parameters.
-    private static final int MAX_DEPTH = 1;
-    private static final long MAX_TIME = 10 * 500; // in milliseconds
-    private static final long MAX_MEMORY = 4L * 1024 * 1024 * 1024;
-    private static int MOVE_CHOICES = 20;
+    private static final long MAX_TIME = 10 * 2800;
+    private static final long MAX_MEMORY = 7L * 1024 * 1024 * 1024;
+    private static int MOVE_CHOICES = 15;
     private static int INCREASE_MOVE_CHOICES = 3;
+    private static int MAX_DEPTH = 1;
+    private static int INCREASE_MAX_DEPTH_AFTER = 20;
 
     // Heuristic weights.
     private static final double MOBILITY_WEIGHT = 0.3;
@@ -110,6 +111,10 @@ public class MonteCarloPlayer extends BasePlayer {
         gameClient.sendMoveMessage(moveMsg);
         moveCounter++;
         MOVE_CHOICES += INCREASE_MOVE_CHOICES;
+
+        if (moveCounter % INCREASE_MAX_DEPTH_AFTER == 0) {
+            MAX_DEPTH++;
+        }        
     }
     
     private boolean isTerminal(LocalBoard board) {
@@ -402,6 +407,7 @@ public class MonteCarloPlayer extends BasePlayer {
             }
             System.out.println("Total Moves Considered: " + rootNode.children.size());
             System.out.println("Move number: " + moveCounter);
+            System.out.println("Max Depth: " + MAX_DEPTH);
         }    
     }
     
