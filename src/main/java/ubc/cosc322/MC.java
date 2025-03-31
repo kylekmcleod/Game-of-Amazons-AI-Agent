@@ -23,7 +23,7 @@ import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
  * For the first four moves, an additional heuristic is applied that favors moves
  * that bring queens closer to the center of the board while keeping them sufficiently spread.
  */
-public class MonteCarloPlayer extends BasePlayer {
+public class MC extends BasePlayer {
 
     // MCTS parameters.
     private static final int MAX_DEPTH = 1;
@@ -40,7 +40,7 @@ public class MonteCarloPlayer extends BasePlayer {
     private Random random = new Random();
     private static int moveCounter = 0;
 
-    public MonteCarloPlayer(String userName, String passwd) {
+    public MC(String userName, String passwd) {
         super(userName, passwd);
     }
     
