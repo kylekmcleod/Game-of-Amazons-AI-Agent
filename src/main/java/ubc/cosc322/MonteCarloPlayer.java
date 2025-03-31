@@ -34,7 +34,7 @@ public class MonteCarloPlayer extends BasePlayer {
     private static final long MAX_MEMORY = 7L * 1024 * 1024 * 1024;
     private static int MOVE_CHOICES = 15;
     private static int INCREASE_MOVE_CHOICES = 3;
-    private static int MAX_DEPTH = 1;
+    private static int MAX_DEPTH = 2;
     private static int INCREASE_MAX_DEPTH_AFTER = 20;
 
     // Heuristic weights.
