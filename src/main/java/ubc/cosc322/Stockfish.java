@@ -12,13 +12,17 @@ import java.util.Random;
 import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
 
 /**
- * MonteCarloPlayer.java
+ * Stockfish.java
  * 
  * A Monte Carlo Tree Search (MCTS) based player for the Game of Amazons.
  * This player uses a combination of heuristics:
- * - Queen mobility: favoring moves that leave the queen with many options.
- * - Opponent blocking: preferring moves that reduce opponent mobility.
- * - Territory control: evaluating the long-term board control (via a flood-fill).
+ * - Queen mobility: favors moves that leave the queen with many options.
+ * - Opponent blocking: prefers moves that reduce opponent mobility.
+ * - Territory control: evaluates long-term board control (via flood-fill).
+ * - Centralization: rewards moves that move queens toward the board’s center.
+ * - Queen spread: rewards an even distribution of our queens.
+ * - Strategic arrow placement: rewards arrow moves that block opponent diagonals.
+ * - Anticipatory (risk): penalizes moves that reduce our overall mobility.
  *
  * The code uses a selective search over a subset of possible moves.
  */
@@ -31,14 +35,19 @@ public class Stockfish extends BasePlayer {
     private static int MOVE_CHOICES = 20;
     private static int INCREASE_MOVE_CHOICES = 3;
 
-    // Heuristic weights.
-    private static final double MOBILITY_WEIGHT = 0.3;
-    private static final double BLOCKING_WEIGHT = 1.0;
-    private static final double TERRITORY_WEIGHT = 0.7;
+    // Base heuristic weights.
+    private static final double MOBILITY_WEIGHT = 0.5;
+    private static final double BLOCKING_WEIGHT = 1.2;
+    private static final double TERRITORY_WEIGHT = 1.0;
+    private static final double CENTER_WEIGHT = 0.3;
+    private static final double SPREAD_WEIGHT = 0.3;
+    private static final double ARROW_WEIGHT = 0.5;
+    private static final double RISK_WEIGHT = 0.25;
 
     private Random random = new Random();
     private static int moveCounter = 0;
-    Stockfish(String userName, String passwd) {
+    
+    public Stockfish(String userName, String passwd) {
         super(userName, passwd);
     }
     
@@ -199,8 +208,7 @@ public class Stockfish extends BasePlayer {
         int currentPlayer = board.getLocalPlayer();
         MoveActionFactory factory = new MoveActionFactory(board.getState(), currentPlayer);
         List<List<Integer>> validMoves = factory.getValidMoves(x, y);
-        double score = validMoves.size() * 3;
-        return score;
+        return validMoves.size() * 3;
     }
     
     /**
@@ -244,9 +252,9 @@ public class Stockfish extends BasePlayer {
     }
     
     /**
-     * New: Flood-fill territory method.
+     * Flood-fill territory method.
      * Computes the number of empty squares (territory) reachable by all queens of the given player.
-     * The board is assumed to be 10x10 (1-indexed).
+     * Assumes board is 10x10 (1-indexed).
      */
     private int floodFillTerritory(LocalBoard board, int player) {
         int boardSize = 10;
@@ -256,7 +264,6 @@ public class Stockfish extends BasePlayer {
         // Add all queen positions for the given player.
         for (int row = 1; row <= boardSize; row++) {
             for (int col = 1; col <= boardSize; col++) {
-                // We use a temporary list to represent the (row, col) position.
                 if (board.getPositionValue(Arrays.asList(row, col)) == player) {
                     Point p = new Point(row, col);
                     if (!visited[row][col]) {
@@ -276,7 +283,6 @@ public class Stockfish extends BasePlayer {
             for (int i = 0; i < 8; i++) {
                 int nx = current.x + dx[i];
                 int ny = current.y + dy[i];
-                // Slide like a queen until a boundary or non-empty cell is reached.
                 while (nx >= 1 && nx <= boardSize && ny >= 1 && ny <= boardSize &&
                         board.getPositionValue(Arrays.asList(nx, ny)) == LocalBoard.EMPTY) {
                     if (!visited[nx][ny]) {
@@ -315,15 +321,130 @@ public class Stockfish extends BasePlayer {
     }
     
     /**
-     * Combined heuristic: sums up mobility, opponent blocking, and territory control.
+     * Centralization heuristic.
+     * Rewards moves that bring a queen closer to the center of the board.
+     */
+    private double centralizationHeuristic(Map<String, Object> moveMap, LocalBoard board) {
+        // Define board center as (5.5, 5.5) for a 10x10 board.
+        double centerX = 5.5, centerY = 5.5;
+        List<Integer> queenTarget = (List<Integer>) moveMap.get(AmazonsGameMessage.QUEEN_POS_NEXT);
+        if (queenTarget == null || queenTarget.size() < 2) {
+            return 0;
+        }
+        double x = queenTarget.get(0);
+        double y = queenTarget.get(1);
+        double distance = Math.hypot(x - centerX, y - centerY);
+        // Maximum distance from center (approximate from a corner): ~6.36
+        double maxDistance = 6.36;
+        double bonus = Math.max(0, maxDistance - distance);
+        return bonus;
+    }
+    
+    /**
+     * Queen spread heuristic.
+     * Rewards configurations where our queens are well spread out.
+     */
+    private double queenSpreadHeuristic(LocalBoard board, int ourPlayer) {
+        List<List<Integer>> ourQueens = new MoveActionFactory(board.getState(), ourPlayer).getAllQueenCurrents();
+        if (ourQueens.size() < 2) {
+            return 0;
+        }
+        double totalDistance = 0;
+        int count = 0;
+        for (int i = 0; i < ourQueens.size(); i++) {
+            for (int j = i + 1; j < ourQueens.size(); j++) {
+                int x1 = ourQueens.get(i).get(0);
+                int y1 = ourQueens.get(i).get(1);
+                int x2 = ourQueens.get(j).get(0);
+                int y2 = ourQueens.get(j).get(1);
+                // Use Manhattan distance.
+                totalDistance += Math.abs(x1 - x2) + Math.abs(y1 - y2);
+                count++;
+            }
+        }
+        return totalDistance / count;
+    }
+    
+    /**
+     * Strategic arrow placement heuristic.
+     * Rewards arrow placements that block key diagonals relative to opponent queens.
+     */
+    private double strategicArrowPlacementHeuristic(Map<String, Object> moveMap, LocalBoard board) {
+        double bonus = 0;
+        List<Integer> arrowTarget = (List<Integer>) moveMap.get(AmazonsGameMessage.ARROW_POS);
+        if (arrowTarget == null || arrowTarget.size() < 2) {
+            return 0;
+        }
+        int ax = arrowTarget.get(0);
+        int ay = arrowTarget.get(1);
+        
+        // Get opponent queen positions.
+        int opponent = board.getOpponent();
+        List<List<Integer>> opponentQueens = new MoveActionFactory(board.getState(), opponent).getAllQueenCurrents();
+        for (List<Integer> queen : opponentQueens) {
+            int qx = queen.get(0);
+            int qy = queen.get(1);
+            if (Math.abs(ax - qx) == Math.abs(ay - qy)) {
+                bonus += 1;  // Add 1 bonus per diagonal alignment.
+            }
+        }
+        return bonus;
+    }
+    
+    /**
+     * Anticipatory (risk) heuristic.
+     * Penalizes moves that significantly reduce our overall mobility.
+     * It compares the sum of moves available to our queens before and after the move.
+     */
+    private double anticipatoryHeuristic(Map<String, Object> moveMap, LocalBoard board) {
+        int ourPlayer = board.getLocalPlayer();
+        MoveActionFactory factory = new MoveActionFactory(board.getState(), ourPlayer);
+        List<List<Integer>> ourQueensBefore = factory.getAllQueenCurrents();
+        int mobilityBefore = 0;
+        for (List<Integer> queen : ourQueensBefore) {
+            int x = queen.get(0);
+            int y = queen.get(1);
+            mobilityBefore += factory.getValidMoves(x, y).size();
+        }
+    
+        LocalBoard simulatedBoard = board.copy();
+        List<Integer> queenCurrent = (List<Integer>) moveMap.get(AmazonsGameMessage.QUEEN_POS_CURR);
+        List<Integer> queenTarget = (List<Integer>) moveMap.get(AmazonsGameMessage.QUEEN_POS_NEXT);
+        List<Integer> arrowTarget = (List<Integer>) moveMap.get(AmazonsGameMessage.ARROW_POS);
+        MoveAction moveAction = new MoveAction(queenCurrent, queenTarget, arrowTarget);
+        simulatedBoard.updateState(moveAction);
+    
+        factory = new MoveActionFactory(simulatedBoard.getState(), ourPlayer);
+        List<List<Integer>> ourQueensAfter = factory.getAllQueenCurrents();
+        int mobilityAfter = 0;
+        for (List<Integer> queen : ourQueensAfter) {
+            int x = queen.get(0);
+            int y = queen.get(1);
+            mobilityAfter += factory.getValidMoves(x, y).size();
+        }
+        return Math.max(0, mobilityBefore - mobilityAfter);
+    }
+    
+    /**
+     * Combined heuristic: sums up mobility, opponent blocking, territory control,
+     * centralization, queen spread, strategic arrow placement, and subtracts risk.
      */
     private double calculateCombinedHeuristic(Map<String, Object> moveMap, LocalBoard board) {
         double mobilityScore = queenMobilityHeuristic(moveMap, board);
         double blockingScore = opponentBlockingHeuristic(moveMap, board);
         double territoryScore = territoryControlHeuristic(moveMap, board);
+        double centralizationScore = centralizationHeuristic(moveMap, board);
+        double spreadScore = queenSpreadHeuristic(board, board.getLocalPlayer());
+        double arrowScore = strategicArrowPlacementHeuristic(moveMap, board);
+        double riskPenalty = anticipatoryHeuristic(moveMap, board);
+    
         return (blockingScore * BLOCKING_WEIGHT) +
                (mobilityScore * MOBILITY_WEIGHT) +
-               (territoryScore * TERRITORY_WEIGHT);
+               (territoryScore * TERRITORY_WEIGHT) +
+               (centralizationScore * CENTER_WEIGHT) +
+               (spreadScore * SPREAD_WEIGHT) +
+               (arrowScore * ARROW_WEIGHT) -
+               (riskPenalty * RISK_WEIGHT);
     }
     
     private boolean simulatePlayout(LocalBoard board, int ourPlayer) {
@@ -385,7 +506,11 @@ public class Stockfish extends BasePlayer {
                 double mobilityHeuristicValue = Math.round(queenMobilityHeuristic(moveMap, child.board) * MOBILITY_WEIGHT * 100.0) / 100.0;
                 double blockingHeuristicValue = -Math.round(opponentBlockingHeuristic(moveMap, child.board) * BLOCKING_WEIGHT * 100.0) / 100.0;
                 double territoryHeuristicValue = Math.round(territoryControlHeuristic(moveMap, child.board) * TERRITORY_WEIGHT * 100.0) / 100.0;
-                double totalHeuristicValue = mobilityHeuristicValue + blockingHeuristicValue + territoryHeuristicValue;
+                double centralizationValue = Math.round(centralizationHeuristic(moveMap, child.board) * CENTER_WEIGHT * 100.0) / 100.0;
+                double spreadValue = Math.round(queenSpreadHeuristic(child.board, child.board.getLocalPlayer()) * SPREAD_WEIGHT * 100.0) / 100.0;
+                double arrowValue = Math.round(strategicArrowPlacementHeuristic(moveMap, child.board) * ARROW_WEIGHT * 100.0) / 100.0;
+                double riskValue = Math.round(anticipatoryHeuristic(moveMap, child.board) * RISK_WEIGHT * 100.0) / 100.0;
+                double totalHeuristicValue = mobilityHeuristicValue + blockingHeuristicValue + territoryHeuristicValue + centralizationValue + spreadValue + arrowValue - riskValue;
     
                 System.out.print((i + 1) + ". Move:");
                 System.out.print("  Q:(" + queenXCurrent + "," + queenYCurrent + ")");
@@ -396,6 +521,10 @@ public class Stockfish extends BasePlayer {
                 System.out.print("  M: " + mobilityHeuristicValue);
                 System.out.print("  B: " + blockingHeuristicValue);
                 System.out.print("  T: " + territoryHeuristicValue);
+                System.out.print("  C: " + centralizationValue);
+                System.out.print("  S: " + spreadValue);
+                System.out.print("  A: " + arrowValue);
+                System.out.print("  R: " + riskValue);
                 System.out.print("  Total Heuristic: " + totalHeuristicValue);
                 System.out.println();
             }
