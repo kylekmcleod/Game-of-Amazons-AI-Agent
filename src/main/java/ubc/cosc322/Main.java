@@ -14,6 +14,7 @@ public class Main {
         //RandomPlayer player = new RandomPlayer("Player" + (int) (Math.random() * 10000), "2");
         MonteCarloPlayer player = new MonteCarloPlayer("Player" + (int) (Math.random() * 10000), "2");
 
+
         if (player.getGameGUI() == null) {
             player.Go();
         } else {
