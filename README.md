@@ -16,16 +16,18 @@ The bot can be fine-tuned to run optimally on different systems. The configurati
 ```java
 // MCTS parameters:
 // These can be adjusted to improve the bot's performance.
-    private static final int MAX_DEPTH = 1;
-    private static final long MAX_TIME = 10 * 500; // in milliseconds
-    private static final long MAX_MEMORY = 4L * 1024 * 1024 * 1024;
-    private static int MOVE_CHOICES = 20;
+    private static int MAX_DEPTH = 1;
+    private static final long MAX_TIME = 10 * 2800; // in milliseconds
+    private static final long MAX_MEMORY = 7L * 1024 * 1024 * 1024;
+    private static int MOVE_CHOICES = 15;
     private static int INCREASE_MOVE_CHOICES = 3;
+    private static int INCREASE_MAX_DEPTH_AFTER = 20;
 
     // Heuristic weights.
     private static final double MOBILITY_WEIGHT = 0.7;
     private static final double BLOCKING_WEIGHT = 1.1;
     private static final double TERRITORY_WEIGHT = 0.5;
+
 ```
 # Project Structure
 ```
