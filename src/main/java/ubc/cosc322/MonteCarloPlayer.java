@@ -33,8 +33,8 @@ public class MonteCarloPlayer extends BasePlayer {
 
     // Heuristic weights.
     private static final double MOBILITY_WEIGHT = 0.3;
-    private static final double BLOCKING_WEIGHT = 1.0;
-    private static final double TERRITORY_WEIGHT = 0.7;
+    private static final double BLOCKING_WEIGHT = 1.1;
+    private static final double TERRITORY_WEIGHT = 0.6;
 
     private Random random = new Random();
     private static int moveCounter = 0;
@@ -245,7 +245,7 @@ public class MonteCarloPlayer extends BasePlayer {
     }
     
     /**
-     * New: Flood-fill territory method.
+     * Flood-fill territory method.
      * Computes the number of empty squares (territory) reachable by all queens of the given player.
      * The board is assumed to be 10x10 (1-indexed).
      */
