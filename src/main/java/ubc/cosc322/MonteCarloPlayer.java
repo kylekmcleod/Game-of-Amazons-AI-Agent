@@ -27,15 +27,15 @@ public class MonteCarloPlayer extends BasePlayer {
 
     // MCTS parameters.
     private static final int MAX_DEPTH = 1;
-    private static final long MAX_TIME = 10 * 500; // in milliseconds
+    private static final long MAX_TIME = 10 * 100; // in milliseconds
     private static final long MAX_MEMORY = 4L * 1024 * 1024 * 1024;
     private static int MOVE_CHOICES = 20;
     private static int INCREASE_MOVE_CHOICES = 3;
 
     // Heuristic weights.
     private static final double MOBILITY_WEIGHT = 0.3;
-    private static final double BLOCKING_WEIGHT = 1.1;
-    private static final double TERRITORY_WEIGHT = 0.6;
+    private static final double BLOCKING_WEIGHT = 1.0;
+    private static final double TERRITORY_WEIGHT = 0.7;
 
     private Random random = new Random();
     private static int moveCounter = 0;
