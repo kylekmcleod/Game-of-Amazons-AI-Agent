@@ -25,7 +25,8 @@ private static int INCREASE_MOVE_CHOICES = 3;
 // Heuristic weights:
 // Higher values mean the bot will prioritize that heuristic more.
 private static final double MOBILITY_WEIGHT = 0.3;
-private static final double BLOCKING_WEIGHT = 1.0;
+private static final double BLOCKING_WEIGHT = 1.1;
+private static final double TERRITORY_WEIGHT = 0.6;
 ```
 # Project Structure
 ```
