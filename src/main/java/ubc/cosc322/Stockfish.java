@@ -19,12 +19,12 @@ import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
  * - Queen mobility: favors moves that leave the queen with many options.
  * - Opponent blocking: prefers moves that reduce opponent mobility.
  * - Territory control: evaluates long-term board control (via flood-fill).
- * - Centralization: rewards moves that move queens toward the board’s center.
+ * - Centralization: rewards moves that bring queens toward the board’s center.
  * - Queen spread: rewards an even distribution of our queens.
- * - Strategic arrow placement: rewards arrow moves that block opponent diagonals.
+ * - Strategic arrow placement: rewards arrow moves that block key diagonals.
  * - Anticipatory (risk): penalizes moves that reduce our overall mobility.
  *
- * The code uses a selective search over a subset of possible moves.
+ * The heuristic weights are adjusted dynamically based on the game phase.
  */
 public class Stockfish extends BasePlayer {
 
@@ -36,15 +36,16 @@ public class Stockfish extends BasePlayer {
     private static int INCREASE_MOVE_CHOICES = 3;
 
     // Base heuristic weights.
-    private static final double MOBILITY_WEIGHT = 0.5;
-    private static final double BLOCKING_WEIGHT = 1.2;
-    private static final double TERRITORY_WEIGHT = 1.0;
-    private static final double CENTER_WEIGHT = 0.3;
+    private static final double MOBILITY_WEIGHT = 0.3;
+    private static final double BLOCKING_WEIGHT = 1.0;
+    private static final double TERRITORY_WEIGHT = 0.7;
+    private static final double CENTER_WEIGHT = 0.4;
     private static final double SPREAD_WEIGHT = 0.3;
-    private static final double ARROW_WEIGHT = 0.5;
+    private static final double ARROW_WEIGHT = 0.25;
     private static final double RISK_WEIGHT = 0.25;
 
     private Random random = new Random();
+    // moveCounter tracks the number of moves made by our bot.
     private static int moveCounter = 0;
     
     public Stockfish(String userName, String passwd) {
@@ -58,7 +59,8 @@ public class Stockfish extends BasePlayer {
         System.out.println("Our Player: " + ourPlayer);
     
         TreeNode rootNode = new TreeNode(rootBoard, null, null);
-        System.out.println("Starting MCTS with " + MAX_TIME/1000 + " seconds and " + MAX_MEMORY/1024/1024 + " MB memory limit.");
+        System.out.println("Starting MCTS with " + MAX_TIME/1000 + " seconds and " 
+                           + MAX_MEMORY/1024/1024 + " MB memory limit.");
     
         long startTime = System.nanoTime();
         long initialMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
@@ -90,7 +92,7 @@ public class Stockfish extends BasePlayer {
         System.out.println("MCTS iterations: " + iterationCount);
         printBestMoves(rootNode);
     
-        // Choose the best child.
+        // Choose the best child based on win rate.
         TreeNode bestChild = null;
         double bestScore = -1;
         for (TreeNode child : rootNode.children) {
@@ -169,7 +171,7 @@ public class Stockfish extends BasePlayer {
             return node;
         }
     
-        // Sort untried moves using the combined heuristic.
+        // Sort untried moves using the dynamically weighted combined heuristic.
         node.untriedMoves.sort((move1, move2) -> {
             double score1 = calculateCombinedHeuristic(move1, node.board);
             double score2 = calculateCombinedHeuristic(move2, node.board);
@@ -394,7 +396,7 @@ public class Stockfish extends BasePlayer {
     /**
      * Anticipatory (risk) heuristic.
      * Penalizes moves that significantly reduce our overall mobility.
-     * It compares the sum of moves available to our queens before and after the move.
+     * Compares the sum of moves available to our queens before and after the move.
      */
     private double anticipatoryHeuristic(Map<String, Object> moveMap, LocalBoard board) {
         int ourPlayer = board.getLocalPlayer();
@@ -426,10 +428,55 @@ public class Stockfish extends BasePlayer {
     }
     
     /**
+     * Dynamically adjusts heuristic multipliers based on game phase.
+     * The game phase is determined by moveCounter with thresholds at _, _, and _.
+     */
+    private Map<String, Double> getPhaseMultipliers() {
+        Map<String, Double> multipliers = new HashMap<>();
+        if (moveCounter < 8) { // Early game
+            multipliers.put("mobility", 1.2);
+            multipliers.put("blocking", 0.8);
+            multipliers.put("territory", 0.5);
+            multipliers.put("center", 1.2);
+            multipliers.put("spread", 1.2);
+            multipliers.put("arrow", 0.8);
+            multipliers.put("risk", 0.8);
+        } else if (moveCounter < 20) { // Midgame
+            multipliers.put("mobility", 1.0);
+            multipliers.put("blocking", 1.0);
+            multipliers.put("territory", 0.7);
+            multipliers.put("center", 1.0);
+            multipliers.put("spread", 1.0);
+            multipliers.put("arrow", 1.0);
+            multipliers.put("risk", 1.0);
+        } else if (moveCounter < 30) { // Late game
+            multipliers.put("mobility", 0.8);
+            multipliers.put("blocking", 1.2);
+            multipliers.put("territory", 1.0);
+            multipliers.put("center", 0.8);
+            multipliers.put("spread", 0.8);
+            multipliers.put("arrow", 1.2);
+            multipliers.put("risk", 1.2);
+        } else { // Extra late game
+            multipliers.put("mobility", 0.7);
+            multipliers.put("blocking", 1.3);
+            multipliers.put("territory", 1.2);
+            multipliers.put("center", 0.7);
+            multipliers.put("spread", 0.7);
+            multipliers.put("arrow", 1.3);
+            multipliers.put("risk", 1.3);
+        }
+        return multipliers;
+    }
+    
+    /**
      * Combined heuristic: sums up mobility, opponent blocking, territory control,
      * centralization, queen spread, strategic arrow placement, and subtracts risk.
+     * The base weights are modulated by dynamic multipliers based on the game phase.
      */
     private double calculateCombinedHeuristic(Map<String, Object> moveMap, LocalBoard board) {
+        Map<String, Double> phase = getPhaseMultipliers();
+    
         double mobilityScore = queenMobilityHeuristic(moveMap, board);
         double blockingScore = opponentBlockingHeuristic(moveMap, board);
         double territoryScore = territoryControlHeuristic(moveMap, board);
@@ -438,13 +485,13 @@ public class Stockfish extends BasePlayer {
         double arrowScore = strategicArrowPlacementHeuristic(moveMap, board);
         double riskPenalty = anticipatoryHeuristic(moveMap, board);
     
-        return (blockingScore * BLOCKING_WEIGHT) +
-               (mobilityScore * MOBILITY_WEIGHT) +
-               (territoryScore * TERRITORY_WEIGHT) +
-               (centralizationScore * CENTER_WEIGHT) +
-               (spreadScore * SPREAD_WEIGHT) +
-               (arrowScore * ARROW_WEIGHT) -
-               (riskPenalty * RISK_WEIGHT);
+        return (blockingScore * BLOCKING_WEIGHT * phase.get("blocking")) +
+               (mobilityScore * MOBILITY_WEIGHT * phase.get("mobility")) +
+               (territoryScore * TERRITORY_WEIGHT * phase.get("territory")) +
+               (centralizationScore * CENTER_WEIGHT * phase.get("center")) +
+               (spreadScore * SPREAD_WEIGHT * phase.get("spread")) +
+               (arrowScore * ARROW_WEIGHT * phase.get("arrow")) -
+               (riskPenalty * RISK_WEIGHT * phase.get("risk"));
     }
     
     private boolean simulatePlayout(LocalBoard board, int ourPlayer) {
@@ -510,7 +557,8 @@ public class Stockfish extends BasePlayer {
                 double spreadValue = Math.round(queenSpreadHeuristic(child.board, child.board.getLocalPlayer()) * SPREAD_WEIGHT * 100.0) / 100.0;
                 double arrowValue = Math.round(strategicArrowPlacementHeuristic(moveMap, child.board) * ARROW_WEIGHT * 100.0) / 100.0;
                 double riskValue = Math.round(anticipatoryHeuristic(moveMap, child.board) * RISK_WEIGHT * 100.0) / 100.0;
-                double totalHeuristicValue = mobilityHeuristicValue + blockingHeuristicValue + territoryHeuristicValue + centralizationValue + spreadValue + arrowValue - riskValue;
+                double totalHeuristicValue = mobilityHeuristicValue + blockingHeuristicValue + territoryHeuristicValue 
+                        + centralizationValue + spreadValue + arrowValue - riskValue;
     
                 System.out.print((i + 1) + ". Move:");
                 System.out.print("  Q:(" + queenXCurrent + "," + queenYCurrent + ")");
