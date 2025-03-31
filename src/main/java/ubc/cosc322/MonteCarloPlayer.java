@@ -1,9 +1,11 @@
 package ubc.cosc322;
 
 import java.util.Map;
+import java.util.Queue;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
@@ -40,6 +42,8 @@ public class MonteCarloPlayer extends BasePlayer {
     // Higher values mean the bot will prioritize that heuristic more.
     private static final double MOBILITY_WEIGHT = 0.3;
     private static final double BLOCKING_WEIGHT = 1.0;
+    private static final double TERRITORY_WEIGHT = 0.5;
+
 
     private Random random = new Random();
     private static int moveCounter = 0;
@@ -281,6 +285,88 @@ public class MonteCarloPlayer extends BasePlayer {
         int blockingEffect = mobilityBefore - mobilityAfter;
         return (blockingEffect * 2) + (completelyBlockedQueens * 15);
     }
+
+    /**
+ * Evaluates the territory controlled by our queens vs. the opponent's queens.
+ * It uses a flood-fill algorithm starting from each queen's position to count
+ * the number of reachable empty squares.
+ */
+    private double territoryControlHeuristic(Map<String, Object> moveMap, LocalBoard board) {
+    // Simulate the move
+     LocalBoard simulatedBoard = board.copy();
+     List<Integer> queenCurrent = (List<Integer>) moveMap.get(AmazonsGameMessage.QUEEN_POS_CURR);
+        List<Integer> queenTarget = (List<Integer>) moveMap.get(AmazonsGameMessage.QUEEN_POS_NEXT);
+     List<Integer> arrowTarget = (List<Integer>) moveMap.get(AmazonsGameMessage.ARROW_POS);
+     MoveAction moveAction = new MoveAction(queenCurrent, queenTarget, arrowTarget);
+     simulatedBoard.updateState(moveAction);
+    
+     // Compute accessible territory for both players using a flood-fill algorithm.
+        int ourTerritory = floodFillTerritory(simulatedBoard, board.getLocalPlayer());
+     int opponentTerritory = floodFillTerritory(simulatedBoard, board.getLocalPlayer() == LocalBoard.QUEEN_PLAYER_1 
+                                                 ? LocalBoard.QUEEN_PLAYER_2 : LocalBoard.QUEEN_PLAYER_1);
+    
+    // Territory advantage: higher is better for us.
+     return ourTerritory - opponentTerritory;
+    }
+
+    /**
+ * Computes the territory (i.e. the number of reachable empty squares)
+ * for the given player by performing a queen-move flood-fill.
+ * Assumes that the LocalBoard class provides:
+ *   - getWidth() and getHeight() methods.
+ *   - getQueenPositions(int player): returns a List<Point> of queen positions for the player.
+ *   - isEmpty(int x, int y): returns true if the cell at (x, y) is empty.
+ *
+ * @param board The board to evaluate.
+ * @param player The player whose territory to compute.
+ * @return The total count of empty squares reachable by any queen of the player.
+ */
+private int floodFillTerritory(LocalBoard board, int player) {
+    int width = board.getWidth();
+    int height = board.getHeight();
+    boolean[][] visited = new boolean[width][height];
+    Queue<Point> queue = new LinkedList<>();
+    
+    // Initialize the queue with all queen positions for the given player.
+    // Assume board.getQueenPositions(player) returns a List<Point> where Point has x and y fields.
+    List<Point> queenPositions = board.getQueenPositions(player);
+    for (Point p : queenPositions) {
+        if (!visited[p.x][p.y]) {
+            visited[p.x][p.y] = true;
+            queue.add(p);
+        }
+    }
+    
+    int territoryCount = 0;
+    // Directions for queen-like moves (8 directions)
+    int[] dx = {-1, -1, -1, 0, 0, 1, 1, 1};
+    int[] dy = {-1, 0, 1, -1, 1, -1, 0, 1};
+    
+    // Perform flood-fill along queen paths.
+    while (!queue.isEmpty()) {
+        Point current = queue.poll();
+        
+        // Explore each of the eight directions.
+        for (int i = 0; i < 8; i++) {
+            int nx = current.x + dx[i];
+            int ny = current.y + dy[i];
+            // Continue in this direction until hitting a boundary or a non-empty cell.
+            while (nx >= 0 && nx < width && ny >= 0 && ny < height && board.isEmpty(nx, ny)) {
+                if (!visited[nx][ny]) {
+                    visited[nx][ny] = true;
+                    territoryCount++;
+                    queue.add(new Point(nx, ny));
+                }
+                nx += dx[i];
+                ny += dy[i];
+            }
+        }
+    }
+    
+    return territoryCount;
+}
+
+
     
 
     /*
@@ -289,8 +375,11 @@ public class MonteCarloPlayer extends BasePlayer {
     private double calculateCombinedHeuristic(Map<String, Object> moveMap, LocalBoard board) {
         double mobilityScore = queenMobilityHeuristic(moveMap, board);
         double blockingScore = opponentBlockingHeuristic(moveMap, board);
+        double territoryScore = territoryControlHeuristic(moveMap, board);
         
-        return blockingScore * BLOCKING_WEIGHT + mobilityScore * MOBILITY_WEIGHT;
+        return (blockingScore * BLOCKING_WEIGHT) +
+               (mobilityScore * MOBILITY_WEIGHT) +
+               (territoryScore * TERRITORY_WEIGHT);
     }
     
     private boolean simulatePlayout(LocalBoard board, int ourPlayer) {
