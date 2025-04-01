@@ -64,7 +64,7 @@ public class MonteCarloPlayer extends BasePlayer {
     
         // Create thread pool. This allows multiple threads to run.
         // Currently increases our iterations by around 45%
-        ExecutorService executor = Executors.newFixedThreadPool(NUM_THREADS);
+        ExecutorService executor = Executors.newWorkStealingPool(NUM_THREADS);
         long startTime = System.currentTimeMillis();
         iterationCount.set(0);
     
@@ -141,7 +141,7 @@ public class MonteCarloPlayer extends BasePlayer {
     private TreeNode bestUCTChild(TreeNode node) {
         TreeNode bestChild = null;
         double bestUCT = Double.NEGATIVE_INFINITY;
-        double C = 0.9;
+        double C = 1.5;
         boolean isOurPlayerTurn = (node.board.getLocalPlayer() == localBoard.getLocalPlayer());
         for (TreeNode child : node.children) {
             double exploitation = (child.visits > 0) ? (double) child.wins / child.visits : 0;
