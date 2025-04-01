@@ -72,6 +72,7 @@ public class MonteCarloPlayer extends BasePlayer {
             executor.submit(() -> {
                 long endTime = startTime + MAX_TIME;
                 while (System.currentTimeMillis() < endTime) {
+                    
                     // Step 1: Selection
                     TreeNode selectedNode;
                     synchronized (rootNode) {
@@ -180,8 +181,7 @@ public class MonteCarloPlayer extends BasePlayer {
         if (node.untriedMoves.isEmpty()) {
             return node;
         }
-    
-        // Sort untried moves using the combined heuristic.
+        
         node.untriedMoves.sort((move1, move2) -> {
             double score1 = calculateCombinedHeuristic(move1, node.board);
             double score2 = calculateCombinedHeuristic(move2, node.board);
@@ -265,86 +265,13 @@ public class MonteCarloPlayer extends BasePlayer {
     }
     
     /**
-     * Flood-fill territory method.
-     * Computes the number of empty squares (territory) reachable by all queens of the given player.
-     * The board is assumed to be 10x10 (1-indexed).
-     */
-    private int floodFillTerritory(LocalBoard board, int player) {
-        int boardSize = 10;
-        boolean[][] visited = new boolean[boardSize + 1][boardSize + 1];
-        Queue<Point> queue = new LinkedList<>();
-    
-        // Add all queen positions for the given player.
-        for (int row = 1; row <= boardSize; row++) {
-            for (int col = 1; col <= boardSize; col++) {
-                // We use a temporary list to represent the (row, col) position.
-                if (board.getPositionValue(Arrays.asList(row, col)) == player) {
-                    Point p = new Point(row, col);
-                    if (!visited[row][col]) {
-                        visited[row][col] = true;
-                        queue.add(p);
-                    }
-                }
-            }
-        }
-    
-        int territoryCount = 0;
-        int[] dx = {-1, -1, -1, 0, 0, 1, 1, 1};
-        int[] dy = {-1,  0,  1, -1, 1, -1, 0, 1};
-    
-        while (!queue.isEmpty()) {
-            Point current = queue.poll();
-            for (int i = 0; i < 8; i++) {
-                int nx = current.x + dx[i];
-                int ny = current.y + dy[i];
-                // Slide like a queen until a boundary or non-empty cell is reached.
-                while (nx >= 1 && nx <= boardSize && ny >= 1 && ny <= boardSize &&
-                        board.getPositionValue(Arrays.asList(nx, ny)) == LocalBoard.EMPTY) {
-                    if (!visited[nx][ny]) {
-                        visited[nx][ny] = true;
-                        territoryCount++;
-                        queue.add(new Point(nx, ny));
-                    }
-                    nx += dx[i];
-                    ny += dy[i];
-                }
-            }
-        }
-        return territoryCount;
-    }
-    
-    /**
-     * Territory control heuristic.
-     * Simulates the move and computes the difference between our reachable territory
-     * and the opponent's reachable territory.
-     */
-    private double territoryControlHeuristic(Map<String, Object> moveMap, LocalBoard board) {
-        LocalBoard simulatedBoard = board.copy();
-        List<Integer> queenCurrent = (List<Integer>) moveMap.get(AmazonsGameMessage.QUEEN_POS_CURR);
-        List<Integer> queenTarget = (List<Integer>) moveMap.get(AmazonsGameMessage.QUEEN_POS_NEXT);
-        List<Integer> arrowTarget = (List<Integer>) moveMap.get(AmazonsGameMessage.ARROW_POS);
-        MoveAction moveAction = new MoveAction(queenCurrent, queenTarget, arrowTarget);
-        simulatedBoard.updateState(moveAction);
-    
-        int ourPlayer = board.getLocalPlayer();
-        int opponent = board.getOpponent();
-    
-        int ourTerritory = floodFillTerritory(simulatedBoard, ourPlayer);
-        int opponentTerritory = floodFillTerritory(simulatedBoard, opponent);
-    
-        return ourTerritory - opponentTerritory;
-    }
-    
-    /**
      * Combined heuristic: sums up mobility, opponent blocking, and territory control.
      */
     private double calculateCombinedHeuristic(Map<String, Object> moveMap, LocalBoard board) {
         double mobilityScore = queenMobilityHeuristic(moveMap, board);
         double blockingScore = opponentBlockingHeuristic(moveMap, board);
-        double territoryScore = territoryControlHeuristic(moveMap, board);
         return (blockingScore * BLOCKING_WEIGHT) +
-               (mobilityScore * MOBILITY_WEIGHT) +
-               (territoryScore * TERRITORY_WEIGHT);
+               (mobilityScore * MOBILITY_WEIGHT);
     }
     
     private boolean simulatePlayout(LocalBoard board, int ourPlayer) {
@@ -405,8 +332,7 @@ public class MonteCarloPlayer extends BasePlayer {
                 moveMap.put(AmazonsGameMessage.ARROW_POS, move.getArrowTarget());
                 double mobilityHeuristicValue = Math.round(queenMobilityHeuristic(moveMap, child.board) * MOBILITY_WEIGHT * 100.0) / 100.0;
                 double blockingHeuristicValue = -Math.round(opponentBlockingHeuristic(moveMap, child.board) * BLOCKING_WEIGHT * 100.0) / 100.0;
-                double territoryHeuristicValue = Math.round(territoryControlHeuristic(moveMap, child.board) * TERRITORY_WEIGHT * 100.0) / 100.0;
-                double totalHeuristicValue = mobilityHeuristicValue + blockingHeuristicValue + territoryHeuristicValue;
+                double totalHeuristicValue = mobilityHeuristicValue + blockingHeuristicValue;
     
                 System.out.print((i + 1) + ". Move:");
                 System.out.print("  Q:(" + queenXCurrent + "," + queenYCurrent + ")");
@@ -416,7 +342,6 @@ public class MonteCarloPlayer extends BasePlayer {
                 System.out.print("  Win rate: " + formattedWinRate);
                 System.out.print("  M: " + mobilityHeuristicValue);
                 System.out.print("  B: " + blockingHeuristicValue);
-                System.out.print("  T: " + territoryHeuristicValue);
                 System.out.print("  Total Heuristic: " + totalHeuristicValue);
                 System.out.println();
             }
