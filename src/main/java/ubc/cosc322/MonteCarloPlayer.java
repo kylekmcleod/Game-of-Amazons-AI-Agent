@@ -3,10 +3,12 @@ package ubc.cosc322;
 import java.awt.Point;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
@@ -182,25 +184,35 @@ public class MonteCarloPlayer extends BasePlayer {
             return node;
         }
         
-        node.untriedMoves.sort((move1, move2) -> {
-            double score1 = calculateCombinedHeuristic(move1, node.board);
-            double score2 = calculateCombinedHeuristic(move2, node.board);
-            return Double.compare(score2, score1);
-        });
-    
-        if (node.untriedMoves.size() > MOVE_CHOICES) {
-            node.untriedMoves = node.untriedMoves.subList(0, MOVE_CHOICES);
+        PriorityQueue<Map<String, Object>> topMoves = new PriorityQueue<>(
+            Comparator.comparingDouble(move -> calculateCombinedHeuristic(move, node.board))
+        );
+        
+        for (Map<String, Object> move : node.untriedMoves) {
+            double score = calculateCombinedHeuristic(move, node.board);
+            
+            if (topMoves.size() < MOVE_CHOICES) {
+                topMoves.add(move);
+            } else if (score > calculateCombinedHeuristic(topMoves.peek(), node.board)) {
+                topMoves.poll();
+                topMoves.add(move);
+            }
         }
-    
-        Map<String, Object> moveMap = node.untriedMoves.remove(0);
+        
+        List<Map<String, Object>> bestMoves = new ArrayList<>(topMoves);
+        
+        Map<String, Object> moveMap = bestMoves.get(bestMoves.size() - 1);
+        node.untriedMoves = bestMoves;
+        node.untriedMoves.remove(moveMap);
+        
         List<Integer> queenCurrent = (List<Integer>) moveMap.get(AmazonsGameMessage.QUEEN_POS_CURR);
         List<Integer> queenTarget = (List<Integer>) moveMap.get(AmazonsGameMessage.QUEEN_POS_NEXT);
         List<Integer> arrowTarget = (List<Integer>) moveMap.get(AmazonsGameMessage.ARROW_POS);
         MoveAction moveAction = new MoveAction(queenCurrent, queenTarget, arrowTarget);
-    
+        
         LocalBoard newBoard = node.board.copy();
         newBoard.updateState(moveAction);
-    
+        
         TreeNode childNode = new TreeNode(newBoard, node, moveAction);
         node.children.add(childNode);
         return childNode;
