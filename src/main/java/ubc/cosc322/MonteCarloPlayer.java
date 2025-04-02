@@ -143,7 +143,7 @@ public class MonteCarloPlayer extends BasePlayer {
     private TreeNode bestUCTChild(TreeNode node) {
         TreeNode bestChild = null;
         double bestUCT = Double.NEGATIVE_INFINITY;
-        double C = 1.5;
+        double C = 0.8;
         boolean isOurPlayerTurn = (node.board.getLocalPlayer() == localBoard.getLocalPlayer());
         for (TreeNode child : node.children) {
             double exploitation = (child.visits > 0) ? (double) child.wins / child.visits : 0;
@@ -164,18 +164,30 @@ public class MonteCarloPlayer extends BasePlayer {
     }
     
     private TreeNode treePolicy(TreeNode node) {
-        int depth = 0;
-        while (!isTerminal(node.board) && depth < MAX_DEPTH) {
+        int startingDepth = getNodeDepth(node);
+        int currentDepth = 0;
+        
+        while (!isTerminal(node.board) && currentDepth < MAX_DEPTH) {
             if (!node.untriedMoves.isEmpty()) {
                 return expand(node);
             } else if (!node.children.isEmpty()) {
                 node = bestUCTChild(node);
+                currentDepth = getNodeDepth(node) - startingDepth;
             } else {
                 break;
             }
-            depth++;
         }
         return node;
+    }
+    
+    private int getNodeDepth(TreeNode node) {
+        int depth = 0;
+        TreeNode current = node;
+        while (current.parent != null) {
+            depth++;
+            current = current.parent;
+        }
+        return depth;
     }
     
     private TreeNode expand(TreeNode node) {
@@ -276,7 +288,7 @@ public class MonteCarloPlayer extends BasePlayer {
     }
     
     /**
-     * Combined heuristic: sums up mobility, opponent blocking, and territory control.
+     * Combined heuristic: sums up mobility, opponent blocking.
      */
     private double calculateCombinedHeuristic(Map<String, Object> moveMap, LocalBoard board) {
         double mobilityScore = queenMobilityHeuristic(moveMap, board);
