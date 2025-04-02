@@ -40,8 +40,8 @@ public class MonteCarloPlayer extends BasePlayer {
     private static int INCREASE_MAX_DEPTH_AFTER = 10;
 
     // Heuristic weights.
-    private static final double MOBILITY_WEIGHT = 0.3;
-    private static final double BLOCKING_WEIGHT = 1.1;
+    private static final double MOBILITY_WEIGHT = 0.5;
+    private static final double BLOCKING_WEIGHT = 1.0;
 
     private Random random = new Random();
     private static int moveCounter = 0;
