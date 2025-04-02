@@ -34,6 +34,8 @@ public class MonteCarloPlayer extends BasePlayer {
     // MCTS parameters.
     private static final long MAX_TIME = 10 * 2800;
     private static final long MAX_MEMORY = 7L * 1024 * 1024 * 1024;
+    private static final int SIMULATION_DEPTH = 25;
+
     private static int MOVE_CHOICES = 15;
     private static int INCREASE_MOVE_CHOICES = 5;
     private static int MAX_DEPTH = 1;
@@ -143,7 +145,7 @@ public class MonteCarloPlayer extends BasePlayer {
     private TreeNode bestUCTChild(TreeNode node) {
         TreeNode bestChild = null;
         double bestUCT = Double.NEGATIVE_INFINITY;
-        double C = 0.8;
+        double C = 1;
         boolean isOurPlayerTurn = (node.board.getLocalPlayer() == localBoard.getLocalPlayer());
         for (TreeNode child : node.children) {
             double exploitation = (child.visits > 0) ? (double) child.wins / child.visits : 0;
@@ -300,13 +302,16 @@ public class MonteCarloPlayer extends BasePlayer {
     private boolean simulatePlayout(LocalBoard board, int ourPlayer) {
         LocalBoard simulationBoard = board.copy();
         int currentPlayer = simulationBoard.getLocalPlayer();
-        while (true) {
+        
+        for (int depth = 0; depth < SIMULATION_DEPTH; depth++) {
             MoveActionFactory factory = new MoveActionFactory(simulationBoard.getState(), currentPlayer);
             List<Map<String, Object>> moves = factory.getActions();
+            
             if (moves.isEmpty()) {
                 int winner = (currentPlayer == 1) ? 2 : 1;
                 return winner == ourPlayer;
             }
+            
             Map<String, Object> moveMap = moves.get(random.nextInt(moves.size()));
             List<Integer> queenCurrent = (List<Integer>) moveMap.get(AmazonsGameMessage.QUEEN_POS_CURR);
             List<Integer> queenTarget = (List<Integer>) moveMap.get(AmazonsGameMessage.QUEEN_POS_NEXT);
@@ -316,6 +321,27 @@ public class MonteCarloPlayer extends BasePlayer {
             currentPlayer = (currentPlayer == 1) ? 2 : 1;
             simulationBoard.setLocalPlayer(currentPlayer);
         }
+
+        int ourMobility = 0;
+        int opponentMobility = 0;
+        
+        // Calculate our mobility
+        int ourPlayerID = ourPlayer;
+        MoveActionFactory factory = new MoveActionFactory(simulationBoard.getState(), ourPlayerID);
+        List<List<Integer>> ourQueens = factory.getAllQueenCurrents();
+        for (List<Integer> queen : ourQueens) {
+            ourMobility += factory.getValidMoves(queen.get(0), queen.get(1)).size();
+        }
+        
+        // Calculate opponent mobility
+        int opponentID = (ourPlayerID == 1) ? 2 : 1;
+        factory = new MoveActionFactory(simulationBoard.getState(), opponentID);
+        List<List<Integer>> opponentQueens = factory.getAllQueenCurrents();
+        for (List<Integer> queen : opponentQueens) {
+            opponentMobility += factory.getValidMoves(queen.get(0), queen.get(1)).size();
+        }
+        
+        return ourMobility > opponentMobility;
     }
     
     private void backpropagate(TreeNode node, int result) {
