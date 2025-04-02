@@ -35,14 +35,13 @@ public class MonteCarloPlayer extends BasePlayer {
     private static final long MAX_TIME = 10 * 2800;
     private static final long MAX_MEMORY = 7L * 1024 * 1024 * 1024;
     private static int MOVE_CHOICES = 15;
-    private static int INCREASE_MOVE_CHOICES = 3;
-    private static int MAX_DEPTH = 2;
-    private static int INCREASE_MAX_DEPTH_AFTER = 20;
+    private static int INCREASE_MOVE_CHOICES = 5;
+    private static int MAX_DEPTH = 1;
+    private static int INCREASE_MAX_DEPTH_AFTER = 10;
 
     // Heuristic weights.
     private static final double MOBILITY_WEIGHT = 0.3;
     private static final double BLOCKING_WEIGHT = 1.1;
-    private static final double TERRITORY_WEIGHT = 0.6;
 
     private Random random = new Random();
     private static int moveCounter = 0;
@@ -106,7 +105,7 @@ public class MonteCarloPlayer extends BasePlayer {
         TreeNode bestChild = null;
         double bestScore = -1;
         for (TreeNode child : rootNode.children) {
-            double winRatio = child.visits > 0 ? (double) child.wins / child.visits : 0;
+            double winRatio = (child.visits > 0) ? ((double) child.wins / (double) child.visits) : 0.5;
             if (winRatio > bestScore) {
                 bestScore = winRatio;
                 bestChild = child;
@@ -129,8 +128,8 @@ public class MonteCarloPlayer extends BasePlayer {
         gamegui.updateGameState(moveMsg);
         gameClient.sendMoveMessage(moveMsg);
         MOVE_CHOICES += INCREASE_MOVE_CHOICES;
-    
-        if (moveCounter % INCREASE_MAX_DEPTH_AFTER == 0) {
+        
+        if (INCREASE_MAX_DEPTH_AFTER != 0 && moveCounter % INCREASE_MAX_DEPTH_AFTER == 0) {
             MAX_DEPTH++;
         }        
     }
