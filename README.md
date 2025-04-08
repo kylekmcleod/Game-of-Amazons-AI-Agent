@@ -1,7 +1,7 @@
 # Project Overview
 
 ### Game of Amazons AI Agent
-This project is part of the COSC 322 course at UBC Okanagan, where we are developing an AI agent to play the [Game of Amazons](https://en.wikipedia.org/wiki/Game_of_the_Amazons). Our AI will use the Monte Carlo Tree Search (MCTS) algorithm to make moves against opponents. All implementation is in Java.
+This is an AI agent that can play the [Game of Amazons](https://en.wikipedia.org/wiki/Game_of_the_Amazons). Our AI will use the Monte Carlo Tree Search (MCTS) algorithm to make moves against opponents. All implementation is in Java.
 
 ### Algorithm
 This project uses a [Monte Carlo Search Tree](https://en.wikipedia.org/wiki/Monte_Carlo_tree_search) in order to find optimal moves. It builds a search tree by simulating multiple random games from a given state and uses the results to estimate the best move. The algorithm consists of four main steps:
